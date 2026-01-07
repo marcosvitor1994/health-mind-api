@@ -1,0 +1,32 @@
+# Documentação (não precisa no deploy)
+*.md
+!README.md
+
+# Configurações de desenvolvimento
+.vscode/
+.idea/
+
+# Node modules (Vercel instala automaticamente)
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# Testes
+test/
+tests/
+*.test.js
+*.spec.js
+coverage/
+
+# Arquivos temporários
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore

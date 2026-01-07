@@ -163,11 +163,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Iniciar servidor
-const PORT = process.env.PORT || 5000;
+// Iniciar servidor (apenas se não estiver rodando na Vercel)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
-  console.log(`
+  const server = app.listen(PORT, () => {
+    console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
 ║            🧠 HEALTH MIND API 🧠                          ║
@@ -177,32 +178,34 @@ const server = app.listen(PORT, () => {
 ║  Documentação: /api                                       ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
-  `);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM recebido. Encerrando servidor graciosamente...');
-  server.close(() => {
-    console.log('Servidor encerrado');
-    process.exit(0);
+    `);
   });
-});
 
-process.on('SIGINT', () => {
-  console.log('SIGINT recebido. Encerrando servidor graciosamente...');
-  server.close(() => {
-    console.log('Servidor encerrado');
-    process.exit(0);
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM recebido. Encerrando servidor graciosamente...');
+    server.close(() => {
+      console.log('Servidor encerrado');
+      process.exit(0);
+    });
   });
-});
 
-// Tratamento de promessas não tratadas
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Promise Rejection:', err);
-  server.close(() => {
-    process.exit(1);
+  process.on('SIGINT', () => {
+    console.log('SIGINT recebido. Encerrando servidor graciosamente...');
+    server.close(() => {
+      console.log('Servidor encerrado');
+      process.exit(0);
+    });
   });
-});
 
+  // Tratamento de promessas não tratadas
+  process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Promise Rejection:', err);
+    server.close(() => {
+      process.exit(1);
+    });
+  });
+}
+
+// Exportar o app para Vercel
 module.exports = app;

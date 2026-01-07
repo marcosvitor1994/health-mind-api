@@ -96,10 +96,8 @@ const patientSchema = new mongoose.Schema(
 );
 
 // Indexes
-patientSchema.index({ email: 1 });
-patientSchema.index({ cpf: 1 });
+// Indexes (email, cpf e googleId já têm unique: true que cria index)
 patientSchema.index({ psychologistId: 1 });
-patientSchema.index({ googleId: 1 });
 patientSchema.index({ deletedAt: 1 });
 
 // Hash de senha antes de salvar

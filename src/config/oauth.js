@@ -4,6 +4,13 @@ const Clinic = require('../models/Clinic');
 const Psychologist = require('../models/Psychologist');
 const Patient = require('../models/Patient');
 
+// Verificar se as credenciais do Google OAuth estão configuradas
+const isGoogleOAuthConfigured = !!(
+  process.env.GOOGLE_CLIENT_ID &&
+  process.env.GOOGLE_CLIENT_SECRET &&
+  process.env.GOOGLE_CALLBACK_URL
+);
+
 // Serializar usuário na sessão
 passport.serializeUser((user, done) => {
   done(null, { id: user._id, role: user.role });
@@ -34,15 +41,17 @@ passport.deserializeUser(async (data, done) => {
   }
 });
 
-// Estratégia do Google OAuth
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL,
-      passReqToCallback: true,
-    },
+// Estratégia do Google OAuth (apenas se configurado)
+if (isGoogleOAuthConfigured) {
+  console.log('✅ Google OAuth configurado');
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.GOOGLE_CALLBACK_URL,
+        passReqToCallback: true,
+      },
     async (req, accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails[0].value;
@@ -106,7 +115,13 @@ passport.use(
         return done(error, null);
       }
     }
-  )
-);
+    )
+  );
+} else {
+  console.log('⚠️  Google OAuth não configurado - rotas OAuth desabilitadas');
+}
+
+// Exportar passport e flag de configuração
+passport.isGoogleOAuthConfigured = isGoogleOAuthConfigured;
 
 module.exports = passport;

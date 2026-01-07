@@ -81,10 +81,7 @@ const clinicSchema = new mongoose.Schema(
   }
 );
 
-// Index para queries comuns
-clinicSchema.index({ email: 1 });
-clinicSchema.index({ cnpj: 1 });
-clinicSchema.index({ googleId: 1 });
+// Index para queries comuns (email, cnpj e googleId já têm unique: true que cria index)
 clinicSchema.index({ deletedAt: 1 });
 
 // Hash de senha antes de salvar

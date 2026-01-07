@@ -61,34 +61,52 @@ router.get('/me', protect, getMe);
  */
 router.post('/logout', protect, logout);
 
-/**
- * @route   GET /api/auth/google
- * @desc    Iniciar autenticação Google OAuth
- * @access  Public
- */
-router.get(
-  '/google',
-  passport.authenticate('google', {
-    scope: ['profile', 'email'],
-  })
-);
+// Rotas do Google OAuth (apenas se configurado)
+if (passport.isGoogleOAuthConfigured) {
+  /**
+   * @route   GET /api/auth/google
+   * @desc    Iniciar autenticação Google OAuth
+   * @access  Public
+   */
+  router.get(
+    '/google',
+    passport.authenticate('google', {
+      scope: ['profile', 'email'],
+    })
+  );
 
-/**
- * @route   GET /api/auth/google/callback
- * @desc    Callback do Google OAuth
- * @access  Public
- */
-router.get(
-  '/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login' }),
-  (req, res) => {
-    // Gera tokens JWT
-    const token = require('../middleware/auth').generateToken(req.user._id, req.user.role);
-    const refreshToken = require('../middleware/auth').generateRefreshToken(req.user._id, req.user.role);
+  /**
+   * @route   GET /api/auth/google/callback
+   * @desc    Callback do Google OAuth
+   * @access  Public
+   */
+  router.get(
+    '/google/callback',
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    (req, res) => {
+      // Gera tokens JWT
+      const token = require('../middleware/auth').generateToken(req.user._id, req.user.role);
+      const refreshToken = require('../middleware/auth').generateRefreshToken(req.user._id, req.user.role);
 
-    // Redireciona para o frontend com os tokens
-    res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}&refreshToken=${refreshToken}`);
-  }
-);
+      // Redireciona para o frontend com os tokens
+      res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}&refreshToken=${refreshToken}`);
+    }
+  );
+} else {
+  // Rotas desabilitadas quando OAuth não está configurado
+  router.get('/google', (req, res) => {
+    res.status(503).json({
+      success: false,
+      message: 'Google OAuth não está configurado neste servidor',
+    });
+  });
+
+  router.get('/google/callback', (req, res) => {
+    res.status(503).json({
+      success: false,
+      message: 'Google OAuth não está configurado neste servidor',
+    });
+  });
+}
 
 module.exports = router;

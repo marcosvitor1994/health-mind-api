@@ -1,0 +1,434 @@
+const Clinic = require('../models/Clinic');
+const Psychologist = require('../models/Psychologist');
+const Patient = require('../models/Patient');
+const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../middleware/auth');
+const { isValidEmail, validatePasswordStrength } = require('../utils/validator');
+
+/**
+ * Registrar clínica
+ * @route POST /api/auth/register/clinic
+ * @access Public
+ */
+exports.registerClinic = async (req, res) => {
+  try {
+    const { name, cnpj, email, password, phone, address } = req.body;
+
+    // Validações
+    if (!name || !cnpj || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Por favor, forneça todos os campos obrigatórios',
+      });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email inválido',
+      });
+    }
+
+    const passwordCheck = validatePasswordStrength(password);
+    if (!passwordCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: passwordCheck.errors.join(', '),
+      });
+    }
+
+    // Verificar se email já existe
+    const emailExists = await Clinic.findOne({ email });
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email já cadastrado',
+      });
+    }
+
+    // Verificar se CNPJ já existe
+    const cnpjExists = await Clinic.findOne({ cnpj: cnpj.replace(/\D/g, '') });
+    if (cnpjExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'CNPJ já cadastrado',
+      });
+    }
+
+    // Criar clínica
+    const clinic = await Clinic.create({
+      name,
+      cnpj: cnpj.replace(/\D/g, ''),
+      email,
+      password,
+      phone,
+      address,
+    });
+
+    // Gerar tokens
+    const token = generateToken(clinic._id, clinic.role);
+    const refreshToken = generateRefreshToken(clinic._id, clinic.role);
+
+    res.status(201).json({
+      success: true,
+      message: 'Clínica registrada com sucesso',
+      data: {
+        user: clinic,
+        token,
+        refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao registrar clínica:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao registrar clínica',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Registrar psicólogo
+ * @route POST /api/auth/register/psychologist
+ * @access Public (requer clinicId)
+ */
+exports.registerPsychologist = async (req, res) => {
+  try {
+    const { clinicId, name, email, password, crp, phone, specialties } = req.body;
+
+    // Validações
+    if (!clinicId || !name || !email || !password || !crp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Por favor, forneça todos os campos obrigatórios',
+      });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email inválido',
+      });
+    }
+
+    const passwordCheck = validatePasswordStrength(password);
+    if (!passwordCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: passwordCheck.errors.join(', '),
+      });
+    }
+
+    // Verificar se clínica existe
+    const clinic = await Clinic.findById(clinicId).notDeleted();
+    if (!clinic) {
+      return res.status(404).json({
+        success: false,
+        message: 'Clínica não encontrada',
+      });
+    }
+
+    // Verificar se email já existe
+    const emailExists = await Psychologist.findOne({ email });
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email já cadastrado',
+      });
+    }
+
+    // Verificar se CRP já existe
+    const crpExists = await Psychologist.findOne({ crp });
+    if (crpExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'CRP já cadastrado',
+      });
+    }
+
+    // Criar psicólogo
+    const psychologist = await Psychologist.create({
+      clinicId,
+      name,
+      email,
+      password,
+      crp,
+      phone,
+      specialties: Array.isArray(specialties) ? specialties : [],
+    });
+
+    // Gerar tokens
+    const token = generateToken(psychologist._id, psychologist.role);
+    const refreshToken = generateRefreshToken(psychologist._id, psychologist.role);
+
+    res.status(201).json({
+      success: true,
+      message: 'Psicólogo registrado com sucesso',
+      data: {
+        user: psychologist,
+        token,
+        refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao registrar psicólogo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao registrar psicólogo',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Registrar paciente
+ * @route POST /api/auth/register/patient
+ * @access Public (requer psychologistId)
+ */
+exports.registerPatient = async (req, res) => {
+  try {
+    const { psychologistId, name, email, password, phone, birthDate, cpf, emergencyContact } = req.body;
+
+    // Validações
+    if (!psychologistId || !name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Por favor, forneça todos os campos obrigatórios',
+      });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email inválido',
+      });
+    }
+
+    const passwordCheck = validatePasswordStrength(password);
+    if (!passwordCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: passwordCheck.errors.join(', '),
+      });
+    }
+
+    // Verificar se psicólogo existe
+    const psychologist = await Psychologist.findById(psychologistId).notDeleted();
+    if (!psychologist) {
+      return res.status(404).json({
+        success: false,
+        message: 'Psicólogo não encontrado',
+      });
+    }
+
+    // Verificar se email já existe
+    const emailExists = await Patient.findOne({ email });
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email já cadastrado',
+      });
+    }
+
+    // Verificar se CPF já existe (se fornecido)
+    if (cpf) {
+      const cpfExists = await Patient.findOne({ cpf: cpf.replace(/\D/g, '') });
+      if (cpfExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'CPF já cadastrado',
+        });
+      }
+    }
+
+    // Criar paciente
+    const patient = await Patient.create({
+      psychologistId,
+      name,
+      email,
+      password,
+      phone,
+      birthDate,
+      cpf: cpf ? cpf.replace(/\D/g, '') : undefined,
+      emergencyContact,
+    });
+
+    // Gerar tokens
+    const token = generateToken(patient._id, patient.role);
+    const refreshToken = generateRefreshToken(patient._id, patient.role);
+
+    res.status(201).json({
+      success: true,
+      message: 'Paciente registrado com sucesso',
+      data: {
+        user: patient,
+        token,
+        refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao registrar paciente:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao registrar paciente',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Login
+ * @route POST /api/auth/login
+ * @access Public
+ */
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validações
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Por favor, forneça email e senha',
+      });
+    }
+
+    // Buscar usuário em todas as collections
+    let user = await Clinic.findOne({ email }).select('+password').notDeleted();
+    let role = 'clinic';
+
+    if (!user) {
+      user = await Psychologist.findOne({ email }).select('+password').notDeleted();
+      role = 'psychologist';
+    }
+
+    if (!user) {
+      user = await Patient.findOne({ email }).select('+password').notDeleted();
+      role = 'patient';
+    }
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciais inválidas',
+      });
+    }
+
+    // Verificar senha
+    const isPasswordCorrect = await user.comparePassword(password);
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciais inválidas',
+      });
+    }
+
+    // Remover senha do objeto
+    user.password = undefined;
+
+    // Gerar tokens
+    const token = generateToken(user._id, role);
+    const refreshToken = generateRefreshToken(user._id, role);
+
+    res.status(200).json({
+      success: true,
+      message: 'Login realizado com sucesso',
+      data: {
+        user,
+        token,
+        refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao fazer login:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao fazer login',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Refresh token
+ * @route POST /api/auth/refresh-token
+ * @access Public
+ */
+exports.refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token não fornecido',
+      });
+    }
+
+    // Verificar refresh token
+    const decoded = verifyRefreshToken(refreshToken);
+
+    // Gerar novos tokens
+    const newToken = generateToken(decoded.id, decoded.role);
+    const newRefreshToken = generateRefreshToken(decoded.id, decoded.role);
+
+    res.status(200).json({
+      success: true,
+      message: 'Token renovado com sucesso',
+      data: {
+        token: newToken,
+        refreshToken: newRefreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao renovar token:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Refresh token inválido ou expirado',
+    });
+  }
+};
+
+/**
+ * Obter dados do usuário logado
+ * @route GET /api/auth/me
+ * @access Private
+ */
+exports.getMe = async (req, res) => {
+  try {
+    res.status(200).json({
+      success: true,
+      data: req.user,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dados do usuário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar dados do usuário',
+    });
+  }
+};
+
+/**
+ * Logout
+ * @route POST /api/auth/logout
+ * @access Private
+ */
+exports.logout = async (req, res) => {
+  try {
+    // Em uma implementação com blacklist de tokens, você adicionaria o token aqui
+    // Por enquanto, apenas retorna sucesso (o cliente deve remover o token)
+
+    res.status(200).json({
+      success: true,
+      message: 'Logout realizado com sucesso',
+    });
+  } catch (error) {
+    console.error('Erro ao fazer logout:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao fazer logout',
+    });
+  }
+};

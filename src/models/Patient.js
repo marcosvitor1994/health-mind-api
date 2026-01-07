@@ -7,7 +7,6 @@ const patientSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Psychologist',
       required: [true, 'Psicólogo é obrigatório'],
-      index: true,
     },
     name: {
       type: String,

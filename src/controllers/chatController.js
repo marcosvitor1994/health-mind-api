@@ -1,5 +1,6 @@
 const ChatMessage = require('../models/ChatMessage');
 const Patient = require('../models/Patient');
+const Psychologist = require('../models/Psychologist');
 const { isValidObjectId, sanitizeString } = require('../utils/validator');
 
 /**
@@ -56,7 +57,7 @@ exports.sendMessage = async (req, res) => {
     });
 
     // Gerar resposta da IA (placeholder - integrar com OpenAI/Claude depois)
-    const aiResponse = await generateAIResponse(message, patientId);
+    const aiResponse = await generateAIResponse(message, patient);
 
     // Criar mensagem da IA
     const aiMessage = await ChatMessage.create({
@@ -204,39 +205,67 @@ exports.deleteMessage = async (req, res) => {
 };
 
 /**
- * Gerar resposta da IA (placeholder)
+ * Gerar resposta da IA
  * TODO: Integrar com OpenAI/Claude API
  * @param {String} message - Mensagem do usuário
- * @param {String} patientId - ID do paciente
+ * @param {Object} patient - Objeto do paciente
  * @returns {Promise<String>} Resposta da IA
  */
-async function generateAIResponse(message, patientId) {
-  // Placeholder - resposta padrão
-  // Aqui você integraria com OpenAI GPT-4, Claude, ou outro modelo de IA
+async function generateAIResponse(message, patient) {
+  try {
+    // Buscar o psicólogo e seu systemPrompt
+    const psychologist = await Psychologist.findById(patient.psychologistId).notDeleted();
 
-  const responses = [
-    'Entendo como você está se sentindo. Pode me contar mais sobre isso?',
-    'Obrigado por compartilhar isso comigo. Como isso tem afetado seu dia a dia?',
-    'Essa é uma questão importante. Você já conversou com seu psicólogo sobre isso?',
-    'Estou aqui para ouvir. O que você acha que poderia ajudar nessa situação?',
-    'É normal sentir-se assim. Lembre-se de que você não está sozinho nessa jornada.',
-  ];
+    if (!psychologist) {
+      return 'Desculpe, não consegui processar sua mensagem no momento.';
+    }
 
-  // Análise simples da mensagem para escolher resposta mais adequada
-  const lowerMessage = message.toLowerCase();
+    // Se o psicólogo tem um systemPrompt customizado
+    if (psychologist.systemPrompt && psychologist.systemPrompt.trim()) {
+      // TODO: Integrar com API de IA (OpenAI, Claude, etc.)
+      //
+      // Exemplo de integração futura:
+      // const response = await openai.chat.completions.create({
+      //   model: "gpt-4",
+      //   messages: [
+      //     { role: "system", content: psychologist.systemPrompt },
+      //     { role: "user", content: message }
+      //   ]
+      // });
+      // return response.choices[0].message.content;
 
-  if (lowerMessage.includes('triste') || lowerMessage.includes('deprimido')) {
-    return 'Sinto muito que você esteja se sentindo assim. Seus sentimentos são válidos. Você tem conversado com seu psicólogo sobre esses sentimentos? Lembre-se de que estou aqui para apoiá-lo, mas em casos de sentimentos intensos, é importante buscar ajuda profissional.';
+      // Por enquanto, retorna uma resposta indicando que o sistema está configurado
+      return `[System Prompt Configurado]\n\nOlá! Este é um espaço de apoio terapêutico personalizado pelo ${psychologist.name}. Sua mensagem foi recebida.\n\nPara ativar respostas personalizadas da IA baseadas na abordagem do seu psicólogo, será necessário integrar uma API de IA (OpenAI, Claude, etc.).\n\n**Sua mensagem**: ${message}\n\n💡 **Enquanto isso**, anote seus pensamentos e compartilhe na próxima sessão com ${psychologist.name}.`;
+    }
+
+    // Se não há systemPrompt, usa respostas padrão
+    const responses = [
+      'Entendo como você está se sentindo. Pode me contar mais sobre isso?',
+      'Obrigado por compartilhar isso comigo. Como isso tem afetado seu dia a dia?',
+      'Essa é uma questão importante. Você já conversou com seu psicólogo sobre isso?',
+      'Estou aqui para ouvir. O que você acha que poderia ajudar nessa situação?',
+      'É normal sentir-se assim. Lembre-se de que você não está sozinho nessa jornada.',
+    ];
+
+    // Análise simples da mensagem para escolher resposta mais adequada
+    const lowerMessage = message.toLowerCase();
+
+    if (lowerMessage.includes('triste') || lowerMessage.includes('deprimido')) {
+      return 'Sinto muito que você esteja se sentindo assim. Seus sentimentos são válidos. Você tem conversado com seu psicólogo sobre esses sentimentos? Lembre-se de que estou aqui para apoiá-lo, mas em casos de sentimentos intensos, é importante buscar ajuda profissional.';
+    }
+
+    if (lowerMessage.includes('ansioso') || lowerMessage.includes('preocupado')) {
+      return 'A ansiedade pode ser desafiadora. Você tem praticado alguma técnica de respiração ou mindfulness? Seu psicólogo pode te ajudar com estratégias específicas para gerenciar esses sentimentos.';
+    }
+
+    if (lowerMessage.includes('feliz') || lowerMessage.includes('bem') || lowerMessage.includes('melhor')) {
+      return 'Que maravilha saber que você está se sentindo bem! É importante celebrar esses momentos positivos. O que você acha que contribuiu para esse sentimento?';
+    }
+
+    // Resposta padrão aleatória
+    return responses[Math.floor(Math.random() * responses.length)];
+  } catch (error) {
+    console.error('Erro ao gerar resposta da IA:', error);
+    return 'Desculpe, não consegui processar sua mensagem no momento. Tente novamente.';
   }
-
-  if (lowerMessage.includes('ansioso') || lowerMessage.includes('preocupado')) {
-    return 'A ansiedade pode ser desafiadora. Você tem praticado alguma técnica de respiração ou mindfulness? Seu psicólogo pode te ajudar com estratégias específicas para gerenciar esses sentimentos.';
-  }
-
-  if (lowerMessage.includes('feliz') || lowerMessage.includes('bem') || lowerMessage.includes('melhor')) {
-    return 'Que maravilha saber que você está se sentindo bem! É importante celebrar esses momentos positivos. O que você acha que contribuiu para esse sentimento?';
-  }
-
-  // Resposta padrão aleatória
-  return responses[Math.floor(Math.random() * responses.length)];
 }

@@ -63,6 +63,12 @@ const psychologistSchema = new mongoose.Schema(
       type: String, // Base64 encoded image
       default: null,
     },
+    systemPrompt: {
+      type: String,
+      default: null,
+      maxlength: [10000, 'System prompt deve ter no máximo 10000 caracteres'],
+      trim: true,
+    },
     googleId: {
       type: String,
       unique: true,

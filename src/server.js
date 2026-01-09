@@ -84,6 +84,7 @@ app.get('/health', (req, res) => {
 
 // Importar rotas
 const authRoutes = require('./routes/auth.routes');
+const invitationRoutes = require('./routes/invitation.routes');
 const clinicRoutes = require('./routes/clinic.routes');
 const psychologistRoutes = require('./routes/psychologist.routes');
 const patientRoutes = require('./routes/patient.routes');
@@ -93,6 +94,7 @@ const appointmentRoutes = require('./routes/appointment.routes');
 
 // Usar rotas
 app.use('/api/auth', authRoutes);
+app.use('/api/invitations', invitationRoutes);
 app.use('/api/clinics', clinicRoutes);
 app.use('/api/psychologists', psychologistRoutes);
 app.use('/api/patients', patientRoutes);

@@ -1,8 +1,10 @@
 const Clinic = require('../models/Clinic');
 const Psychologist = require('../models/Psychologist');
 const Patient = require('../models/Patient');
+const Invitation = require('../models/Invitation');
 const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../middleware/auth');
 const { isValidEmail, validatePasswordStrength } = require('../utils/validator');
+const { sendWelcomeEmail } = require('../services/emailService');
 
 /**
  * Registrar clínica
@@ -429,6 +431,324 @@ exports.logout = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao fazer logout',
+    });
+  }
+};
+
+/**
+ * Finalizar cadastro de clínica (via convite)
+ * @route POST /api/auth/complete-registration/clinic
+ * @access Public
+ */
+exports.completeClinicRegistration = async (req, res) => {
+  try {
+    const { token, password, phone, address } = req.body;
+
+    // Validações
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token e senha são obrigatórios',
+      });
+    }
+
+    // Buscar convite
+    const invitation = await Invitation.findOne({ token, role: 'clinic' });
+
+    if (!invitation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Convite não encontrado',
+      });
+    }
+
+    if (!invitation.isValid()) {
+      return res.status(400).json({
+        success: false,
+        message: invitation.isExpired() ? 'Este convite expirou' : 'Convite já foi utilizado',
+      });
+    }
+
+    // Validar senha
+    const passwordCheck = validatePasswordStrength(password);
+    if (!passwordCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: passwordCheck.errors.join(', '),
+      });
+    }
+
+    // Verificar se email já foi cadastrado (pode ter sido durante o período do convite)
+    const emailExists = await Clinic.findOne({ email: invitation.email });
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email já cadastrado',
+      });
+    }
+
+    // Criar clínica com dados pré-preenchidos + dados do formulário
+    const clinic = await Clinic.create({
+      name: invitation.preFilledData.name,
+      cnpj: invitation.preFilledData.cnpj,
+      email: invitation.email,
+      password,
+      phone: phone || invitation.preFilledData.phone,
+      address,
+    });
+
+    // Marcar convite como aceito
+    await invitation.accept(req.ip);
+
+    // Enviar e-mail de boas-vindas
+    try {
+      await sendWelcomeEmail(clinic);
+    } catch (emailError) {
+      console.error('Erro ao enviar e-mail de boas-vindas:', emailError);
+    }
+
+    // Gerar tokens
+    const accessToken = generateToken(clinic._id, clinic.role);
+    const refreshToken = generateRefreshToken(clinic._id, clinic.role);
+
+    res.status(201).json({
+      success: true,
+      message: 'Cadastro concluído com sucesso',
+      data: {
+        user: clinic,
+        token: accessToken,
+        refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao finalizar cadastro de clínica:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao finalizar cadastro',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Finalizar cadastro de psicólogo (via convite)
+ * @route POST /api/auth/complete-registration/psychologist
+ * @access Public
+ */
+exports.completePsychologistRegistration = async (req, res) => {
+  try {
+    const { token, password, phone, bio } = req.body;
+
+    // Validações
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token e senha são obrigatórios',
+      });
+    }
+
+    // Buscar convite
+    const invitation = await Invitation.findOne({ token, role: 'psychologist' });
+
+    if (!invitation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Convite não encontrado',
+      });
+    }
+
+    if (!invitation.isValid()) {
+      return res.status(400).json({
+        success: false,
+        message: invitation.isExpired() ? 'Este convite expirou' : 'Convite já foi utilizado',
+      });
+    }
+
+    // Validar senha
+    const passwordCheck = validatePasswordStrength(password);
+    if (!passwordCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: passwordCheck.errors.join(', '),
+      });
+    }
+
+    // Verificar se email já foi cadastrado
+    const emailExists = await Psychologist.findOne({ email: invitation.email });
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email já cadastrado',
+      });
+    }
+
+    // Verificar se a clínica ainda existe
+    const clinic = await Clinic.findById(invitation.preFilledData.clinicId).notDeleted();
+    if (!clinic) {
+      return res.status(404).json({
+        success: false,
+        message: 'Clínica não encontrada',
+      });
+    }
+
+    // Criar psicólogo
+    const psychologist = await Psychologist.create({
+      name: invitation.preFilledData.name,
+      email: invitation.email,
+      password,
+      clinicId: invitation.preFilledData.clinicId,
+      crp: invitation.preFilledData.crp,
+      specialties: invitation.preFilledData.specialties || [],
+      phone: phone || invitation.preFilledData.phone,
+      bio,
+    });
+
+    // Marcar convite como aceito
+    await invitation.accept(req.ip);
+
+    // Enviar e-mail de boas-vindas
+    try {
+      await sendWelcomeEmail(psychologist);
+    } catch (emailError) {
+      console.error('Erro ao enviar e-mail de boas-vindas:', emailError);
+    }
+
+    // Gerar tokens
+    const accessToken = generateToken(psychologist._id, psychologist.role);
+    const refreshToken = generateRefreshToken(psychologist._id, psychologist.role);
+
+    res.status(201).json({
+      success: true,
+      message: 'Cadastro concluído com sucesso',
+      data: {
+        user: psychologist,
+        token: accessToken,
+        refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao finalizar cadastro de psicólogo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao finalizar cadastro',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Finalizar cadastro de paciente (via convite)
+ * @route POST /api/auth/complete-registration/patient
+ * @access Public
+ */
+exports.completePatientRegistration = async (req, res) => {
+  try {
+    const { token, password, cpf, emergencyContact } = req.body;
+
+    // Validações
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token e senha são obrigatórios',
+      });
+    }
+
+    // Buscar convite
+    const invitation = await Invitation.findOne({ token, role: 'patient' });
+
+    if (!invitation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Convite não encontrado',
+      });
+    }
+
+    if (!invitation.isValid()) {
+      return res.status(400).json({
+        success: false,
+        message: invitation.isExpired() ? 'Este convite expirou' : 'Convite já foi utilizado',
+      });
+    }
+
+    // Validar senha
+    const passwordCheck = validatePasswordStrength(password);
+    if (!passwordCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: passwordCheck.errors.join(', '),
+      });
+    }
+
+    // Verificar se email já foi cadastrado
+    const emailExists = await Patient.findOne({ email: invitation.email });
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email já cadastrado',
+      });
+    }
+
+    // Verificar se CPF já existe (se fornecido)
+    if (cpf) {
+      const cpfExists = await Patient.findOne({ cpf: cpf.replace(/\D/g, '') });
+      if (cpfExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'CPF já cadastrado',
+        });
+      }
+    }
+
+    // Verificar se o psicólogo ainda existe
+    const psychologist = await Psychologist.findById(invitation.preFilledData.psychologistId).notDeleted();
+    if (!psychologist) {
+      return res.status(404).json({
+        success: false,
+        message: 'Psicólogo não encontrado',
+      });
+    }
+
+    // Criar paciente
+    const patient = await Patient.create({
+      name: invitation.preFilledData.name,
+      email: invitation.email,
+      password,
+      psychologistId: invitation.preFilledData.psychologistId,
+      phone: invitation.preFilledData.phone,
+      birthDate: invitation.preFilledData.birthDate,
+      cpf: cpf ? cpf.replace(/\D/g, '') : undefined,
+      emergencyContact,
+    });
+
+    // Marcar convite como aceito
+    await invitation.accept(req.ip);
+
+    // Enviar e-mail de boas-vindas
+    try {
+      await sendWelcomeEmail(patient);
+    } catch (emailError) {
+      console.error('Erro ao enviar e-mail de boas-vindas:', emailError);
+    }
+
+    // Gerar tokens
+    const accessToken = generateToken(patient._id, patient.role);
+    const refreshToken = generateRefreshToken(patient._id, patient.role);
+
+    res.status(201).json({
+      success: true,
+      message: 'Cadastro concluído com sucesso',
+      data: {
+        user: patient,
+        token: accessToken,
+        refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao finalizar cadastro de paciente:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao finalizar cadastro',
+      error: error.message,
     });
   }
 };

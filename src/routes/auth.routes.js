@@ -8,6 +8,9 @@ const {
   refreshToken,
   getMe,
   logout,
+  completeClinicRegistration,
+  completePsychologistRegistration,
+  completePatientRegistration,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const passport = require('../config/oauth');
@@ -60,6 +63,27 @@ router.get('/me', protect, getMe);
  * @access  Private
  */
 router.post('/logout', protect, logout);
+
+/**
+ * @route   POST /api/auth/complete-registration/clinic
+ * @desc    Finalizar cadastro de clínica via convite
+ * @access  Public
+ */
+router.post('/complete-registration/clinic', completeClinicRegistration);
+
+/**
+ * @route   POST /api/auth/complete-registration/psychologist
+ * @desc    Finalizar cadastro de psicólogo via convite
+ * @access  Public
+ */
+router.post('/complete-registration/psychologist', completePsychologistRegistration);
+
+/**
+ * @route   POST /api/auth/complete-registration/patient
+ * @desc    Finalizar cadastro de paciente via convite
+ * @access  Public
+ */
+router.post('/complete-registration/patient', completePatientRegistration);
 
 // Rotas do Google OAuth (apenas se configurado)
 if (passport.isGoogleOAuthConfigured) {

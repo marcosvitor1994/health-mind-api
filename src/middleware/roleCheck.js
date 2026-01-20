@@ -93,7 +93,7 @@ const authorizeClinicForPsychologist = async (req, res, next) => {
         });
       }
 
-      if (psychologist.clinicId.toString() !== req.user._id.toString()) {
+      if (!psychologist.clinicId || psychologist.clinicId.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Este psicólogo não pertence à sua clínica',
@@ -147,7 +147,7 @@ const authorizePsychologistForPatient = async (req, res, next) => {
         });
       }
 
-      if (patient.psychologistId.toString() !== req.user._id.toString()) {
+      if (!patient.psychologistId || patient.psychologistId.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Este paciente não está sob seus cuidados',
@@ -157,7 +157,7 @@ const authorizePsychologistForPatient = async (req, res, next) => {
       return next();
     }
 
-    // Se for clínica, verifica se o paciente pertence a algum psicólogo da clínica
+    // Se for clínica, verifica se o paciente pertence a ela diretamente ou através de um psicólogo
     if (req.user.role === 'clinic') {
       const Patient = require('../models/Patient');
       const Psychologist = require('../models/Psychologist');
@@ -171,16 +171,24 @@ const authorizePsychologistForPatient = async (req, res, next) => {
         });
       }
 
-      const psychologist = await Psychologist.findById(patient.psychologistId).notDeleted();
-
-      if (!psychologist || psychologist.clinicId.toString() !== req.user._id.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Este paciente não pertence a nenhum psicólogo da sua clínica',
-        });
+      // Verifica se paciente está vinculado diretamente à clínica
+      if (patient.clinicId && patient.clinicId.toString() === req.user._id.toString()) {
+        return next();
       }
 
-      return next();
+      // Verifica se paciente pertence a algum psicólogo da clínica
+      if (patient.psychologistId) {
+        const psychologist = await Psychologist.findById(patient.psychologistId).notDeleted();
+
+        if (psychologist && psychologist.clinicId && psychologist.clinicId.toString() === req.user._id.toString()) {
+          return next();
+        }
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: 'Este paciente não pertence à sua clínica',
+      });
     }
 
     return res.status(403).json({

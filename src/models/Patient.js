@@ -6,7 +6,12 @@ const patientSchema = new mongoose.Schema(
     psychologistId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Psychologist',
-      required: [true, 'Psicólogo é obrigatório'],
+      default: null,
+    },
+    clinicId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Clinic',
+      default: null,
     },
     name: {
       type: String,
@@ -97,6 +102,7 @@ const patientSchema = new mongoose.Schema(
 // Indexes
 // Indexes (email, cpf e googleId já têm unique: true que cria index)
 patientSchema.index({ psychologistId: 1 });
+patientSchema.index({ clinicId: 1 });
 patientSchema.index({ deletedAt: 1 });
 
 // Hash de senha antes de salvar

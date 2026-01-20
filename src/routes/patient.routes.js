@@ -28,9 +28,9 @@ router.get(
 /**
  * @route   PUT /api/patients/:id
  * @desc    Atualizar dados do paciente
- * @access  Private (Patient, Psychologist)
+ * @access  Private (Patient, Psychologist, Clinic)
  */
-router.put('/:id', protect, authorize('patient', 'psychologist'), authorizePsychologistForPatient, updatePatient);
+router.put('/:id', protect, authorize('patient', 'psychologist', 'clinic'), authorizePsychologistForPatient, updatePatient);
 
 /**
  * @route   POST /api/patients/:id/avatar

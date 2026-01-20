@@ -5,7 +5,13 @@ const {
   updateClinic,
   uploadLogo,
   getPsychologists,
+  getPatients,
   getStats,
+  linkPsychologist,
+  unlinkPsychologist,
+  linkPatient,
+  unlinkPatient,
+  assignPsychologistToPatient,
 } = require('../controllers/clinicController');
 const { protect } = require('../middleware/auth');
 const { authorize } = require('../middleware/roleCheck');
@@ -54,5 +60,47 @@ router.get('/:id/psychologists', protect, authorize('clinic'), getPsychologists)
  * @access  Private (Clinic)
  */
 router.get('/:id/stats', protect, authorize('clinic'), getStats);
+
+/**
+ * @route   GET /api/clinics/:id/patients
+ * @desc    Listar pacientes da clínica
+ * @access  Private (Clinic)
+ */
+router.get('/:id/patients', protect, authorize('clinic'), getPatients);
+
+/**
+ * @route   POST /api/clinics/:clinicId/psychologists/:psychologistId/link
+ * @desc    Vincular psicólogo à clínica
+ * @access  Private (Clinic)
+ */
+router.post('/:clinicId/psychologists/:psychologistId/link', protect, authorize('clinic'), linkPsychologist);
+
+/**
+ * @route   POST /api/clinics/:clinicId/psychologists/:psychologistId/unlink
+ * @desc    Desvincular psicólogo da clínica
+ * @access  Private (Clinic)
+ */
+router.post('/:clinicId/psychologists/:psychologistId/unlink', protect, authorize('clinic'), unlinkPsychologist);
+
+/**
+ * @route   POST /api/clinics/:clinicId/patients/:patientId/link
+ * @desc    Vincular paciente à clínica
+ * @access  Private (Clinic)
+ */
+router.post('/:clinicId/patients/:patientId/link', protect, authorize('clinic'), linkPatient);
+
+/**
+ * @route   POST /api/clinics/:clinicId/patients/:patientId/unlink
+ * @desc    Desvincular paciente da clínica
+ * @access  Private (Clinic)
+ */
+router.post('/:clinicId/patients/:patientId/unlink', protect, authorize('clinic'), unlinkPatient);
+
+/**
+ * @route   PUT /api/clinics/:clinicId/patients/:patientId/assign-psychologist
+ * @desc    Atribuir paciente a um psicólogo da clínica
+ * @access  Private (Clinic)
+ */
+router.put('/:clinicId/patients/:patientId/assign-psychologist', protect, authorize('clinic'), assignPsychologistToPatient);
 
 module.exports = router;

@@ -6,7 +6,8 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(taskkill /PID 231140 /F)",
-      "Bash(cmd.exe //c \"taskkill /PID 231140 /F\")"
+      "Bash(cmd.exe //c \"taskkill /PID 231140 /F\")",
+      "Bash(node scripts/testPopulateAndAuth.js:*)"
     ]
   }
 }

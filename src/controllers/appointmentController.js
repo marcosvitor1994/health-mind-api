@@ -157,7 +157,7 @@ exports.getAppointment = async (req, res) => {
 /**
  * Atualizar agendamento
  * @route PUT /api/appointments/:id
- * @access Private (Patient, Psychologist)
+ * @access Private (Patient, Psychologist, Clinic)
  */
 exports.updateAppointment = async (req, res) => {
   try {
@@ -261,7 +261,7 @@ exports.updateAppointment = async (req, res) => {
 /**
  * Cancelar agendamento
  * @route DELETE /api/appointments/:id
- * @access Private (Patient, Psychologist)
+ * @access Private (Patient, Psychologist, Clinic)
  */
 exports.cancelAppointment = async (req, res) => {
   try {

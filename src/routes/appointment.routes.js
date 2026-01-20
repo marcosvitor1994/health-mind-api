@@ -28,16 +28,16 @@ router.get('/:id', protect, authorize('patient', 'psychologist', 'clinic'), getA
 /**
  * @route   PUT /api/appointments/:id
  * @desc    Atualizar agendamento
- * @access  Private (Psychologist, Patient)
+ * @access  Private (Psychologist, Patient, Clinic)
  */
-router.put('/:id', protect, authorize('psychologist', 'patient'), updateAppointment);
+router.put('/:id', protect, authorize('psychologist', 'patient', 'clinic'), updateAppointment);
 
 /**
  * @route   DELETE /api/appointments/:id
  * @desc    Cancelar agendamento
- * @access  Private (Psychologist, Patient)
+ * @access  Private (Psychologist, Patient, Clinic)
  */
-router.delete('/:id', protect, authorize('psychologist', 'patient'), cancelAppointment);
+router.delete('/:id', protect, authorize('psychologist', 'patient', 'clinic'), cancelAppointment);
 
 /**
  * @route   GET /api/appointments/psychologist/:psychologistId

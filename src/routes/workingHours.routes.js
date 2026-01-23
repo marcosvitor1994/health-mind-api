@@ -1,40 +1,40 @@
 const express = require('express');
 const router = express.Router();
 const workingHoursController = require('../controllers/workingHoursController');
-const auth = require('../middleware/auth');
-const roleCheck = require('../middleware/roleCheck');
+const { protect } = require('../middleware/auth');
+const { authorize } = require('../middleware/roleCheck');
 
 // Todas as rotas requerem autenticação
-router.use(auth);
+router.use(protect);
 
 // Rotas de horários de funcionamento
 router.get(
   '/:entityType/:entityId',
-  roleCheck(['clinic', 'psychologist']),
+  authorize('clinic', 'psychologist'),
   workingHoursController.getWorkingHours
 );
 
 router.get(
   '/:entityType/:entityId/effective',
-  roleCheck(['clinic', 'psychologist']),
+  authorize('clinic', 'psychologist'),
   workingHoursController.getEffectiveSchedule
 );
 
 router.put(
   '/:entityType/:entityId',
-  roleCheck(['clinic', 'psychologist']),
+  authorize('clinic', 'psychologist'),
   workingHoursController.updateWorkingHours
 );
 
 router.post(
   '/:entityType/:entityId/override',
-  roleCheck(['clinic', 'psychologist']),
+  authorize('clinic', 'psychologist'),
   workingHoursController.addDateOverride
 );
 
 router.delete(
   '/:entityType/:entityId/override/:date',
-  roleCheck(['clinic', 'psychologist']),
+  authorize('clinic', 'psychologist'),
   workingHoursController.removeDateOverride
 );
 

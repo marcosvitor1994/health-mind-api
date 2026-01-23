@@ -10,6 +10,8 @@
     "vercel-build": "echo 'Build completed'",
     "deploy": "vercel --prod",
     "deploy:preview": "vercel",
+    "seed": "node scripts/seedDatabase.js",
+    "db:check": "node scripts/checkDatabase.js",
     "invite:clinic": "node scripts/createClinicInvite.js",
     "invites:list": "node scripts/listInvites.js",
     "invite:cancel": "node scripts/cancelInvite.js"

@@ -71,7 +71,20 @@ const testData = {
         crp: '06/654321',
         phone: '11955554444',
         specialties: ['Psicanálise', 'Trauma', 'TEPT']
-      }
+      },
+      linkedToClinic: true
+    },
+    {
+      type: 'psychologist',
+      data: {
+        name: 'Dr. Pedro Souza',
+        email: 'pedro.souza@healthmind.com',
+        password: 'Psicologo@789',
+        crp: '06/789456',
+        phone: '11922221111',
+        specialties: ['Terapia Familiar', 'Casais']
+      },
+      linkedToClinic: false // Psicólogo independente
     },
     {
       type: 'patient',
@@ -82,7 +95,9 @@ const testData = {
         phone: '11944443333',
         birthDate: new Date('1985-10-20'),
         cpf: '98765432109'
-      }
+      },
+      linkedToClinic: true,
+      hasPsychologist: true
     },
     {
       type: 'patient',
@@ -93,7 +108,22 @@ const testData = {
         phone: '11933332222',
         birthDate: new Date('1995-03-08'),
         cpf: '45678912345'
-      }
+      },
+      linkedToClinic: true,
+      hasPsychologist: false // Paciente vinculado à clínica mas sem psicólogo
+    },
+    {
+      type: 'patient',
+      data: {
+        name: 'Roberto Alves',
+        email: 'roberto.alves@email.com',
+        password: 'Paciente@101',
+        phone: '11911110000',
+        birthDate: new Date('1988-12-05'),
+        cpf: '78945612300'
+      },
+      linkedToClinic: false,
+      hasPsychologist: true // Paciente independente com psicólogo independente
     }
   ]
 };
@@ -199,7 +229,8 @@ async function createTestUsers() {
   console.log('📍 Criando Paciente...');
   const patient = new Patient({
     ...testData.patient,
-    psychologistId: psychologist._id
+    psychologistId: psychologist._id,
+    clinicId: clinic._id
   });
   await patient.save();
   results.users.push({
@@ -208,38 +239,55 @@ async function createTestUsers() {
     email: patient.email,
     senha: testData.patient.password,
     id: patient._id,
-    psicologoVinculado: psychologist.name
+    psicologoVinculado: psychologist.name,
+    clinicaVinculada: clinic.name
   });
   console.log(`   ✅ Paciente criado: ${patient.name}`);
 
   // 4. Criar usuários adicionais
-  let additionalPsychologist = null;
+  const additionalPsychologists = [];
 
   for (const additional of testData.additionalUsers) {
     if (additional.type === 'psychologist') {
       console.log('📍 Criando Psicólogo adicional...');
       const psych = new Psychologist({
         ...additional.data,
-        clinicId: clinic._id
+        clinicId: additional.linkedToClinic ? clinic._id : null
       });
       await psych.save();
-      additionalPsychologist = psych;
+      additionalPsychologists.push(psych);
       results.users.push({
         tipo: 'Psicólogo',
         nome: psych.name,
         email: psych.email,
         senha: additional.data.password,
         id: psych._id,
-        clinicaVinculada: clinic.name
+        clinicaVinculada: additional.linkedToClinic ? clinic.name : 'Independente'
       });
-      console.log(`   ✅ Psicólogo criado: ${psych.name}`);
+      console.log(`   ✅ Psicólogo criado: ${psych.name} ${additional.linkedToClinic ? '(vinculado à clínica)' : '(independente)'}`);
     } else if (additional.type === 'patient') {
       console.log('📍 Criando Paciente adicional...');
-      // Alterna entre psicólogos
-      const assignedPsych = additionalPsychologist || psychologist;
+
+      let assignedPsych = null;
+      let psychName = 'Sem psicólogo';
+
+      if (additional.hasPsychologist) {
+        if (additional.linkedToClinic) {
+          // Paciente vinculado à clínica com psicólogo
+          const clinicPsychologists = additionalPsychologists.filter(p => p.clinicId && p.clinicId.equals(clinic._id));
+          assignedPsych = clinicPsychologists.length > 0 ? clinicPsychologists[0] : psychologist;
+        } else {
+          // Paciente independente com psicólogo independente
+          const independentPsychologists = additionalPsychologists.filter(p => !p.clinicId);
+          assignedPsych = independentPsychologists.length > 0 ? independentPsychologists[0] : null;
+        }
+        psychName = assignedPsych ? assignedPsych.name : 'Sem psicólogo';
+      }
+
       const pat = new Patient({
         ...additional.data,
-        psychologistId: assignedPsych._id
+        psychologistId: assignedPsych ? assignedPsych._id : null,
+        clinicId: additional.linkedToClinic ? clinic._id : null
       });
       await pat.save();
       results.users.push({
@@ -248,9 +296,10 @@ async function createTestUsers() {
         email: pat.email,
         senha: additional.data.password,
         id: pat._id,
-        psicologoVinculado: assignedPsych.name
+        psicologoVinculado: psychName,
+        clinicaVinculada: additional.linkedToClinic ? clinic.name : 'Independente'
       });
-      console.log(`   ✅ Paciente criado: ${pat.name}`);
+      console.log(`   ✅ Paciente criado: ${pat.name} (Clínica: ${additional.linkedToClinic ? 'Sim' : 'Não'}, Psicólogo: ${psychName})`);
     }
   }
 
@@ -305,9 +354,17 @@ async function createTestAppointments(clinic, psychologist, patient) {
   let templateIndex = 0;
 
   for (const pat of allPatients) {
-    // Encontrar o psicólogo do paciente
+    // Encontrar o psicólogo do paciente (se existir)
+    if (!pat.psychologistId) {
+      console.log(`   ⚠️ Paciente ${pat.name} não tem psicólogo vinculado, pulando agendamentos`);
+      continue;
+    }
+
     const psych = allPsychologists.find(p => p._id.equals(pat.psychologistId));
-    if (!psych) continue;
+    if (!psych) {
+      console.log(`   ⚠️ Psicólogo não encontrado para paciente ${pat.name}, pulando agendamentos`);
+      continue;
+    }
 
     // Criar 1-2 agendamentos por paciente
     const numAppointments = Math.min(2, appointmentTemplates.length - templateIndex);
@@ -387,8 +444,36 @@ async function testRelations() {
   });
   console.log(`   ${psychologists.length > 0 ? '✅' : '❌'} Clínica -> Psicólogos: ${psychologists.length} encontrado(s)`);
 
-  // Teste 2: Psicólogo -> Pacientes
-  for (const psych of psychologists) {
+  // Teste 1.1: Psicólogos independentes
+  const independentPsychologists = await Psychologist.find({ clinicId: null });
+  results.relationTests.push({
+    teste: 'Psicólogos Independentes (sem clínica)',
+    resultado: independentPsychologists.length > 0 ? '✅ OK' : '⚠️ Nenhum',
+    detalhes: `${independentPsychologists.length} psicólogo(s) independente(s)`
+  });
+  console.log(`   ${independentPsychologists.length > 0 ? '✅' : '⚠️'} Psicólogos Independentes: ${independentPsychologists.length} encontrado(s)`);
+
+  // Teste 2: Clínica -> Pacientes
+  const clinicPatients = await Patient.find({ clinicId: clinic._id });
+  results.relationTests.push({
+    teste: 'Clínica -> Pacientes',
+    resultado: clinicPatients.length > 0 ? '✅ OK' : '⚠️ Sem pacientes',
+    detalhes: `${clinicPatients.length} paciente(s) vinculado(s) à clínica`
+  });
+  console.log(`   ${clinicPatients.length > 0 ? '✅' : '⚠️'} Clínica -> Pacientes: ${clinicPatients.length} encontrado(s)`);
+
+  // Teste 2.1: Pacientes sem psicólogo mas com clínica
+  const patientsWithoutPsych = await Patient.find({ clinicId: clinic._id, psychologistId: null });
+  results.relationTests.push({
+    teste: 'Pacientes da clínica sem psicólogo',
+    resultado: patientsWithoutPsych.length > 0 ? '✅ OK' : '⚠️ Nenhum',
+    detalhes: `${patientsWithoutPsych.length} paciente(s) aguardando atribuição de psicólogo`
+  });
+  console.log(`   ${patientsWithoutPsych.length > 0 ? '✅' : '⚠️'} Pacientes sem psicólogo: ${patientsWithoutPsych.length} encontrado(s)`);
+
+  // Teste 3: Psicólogo -> Pacientes
+  const allPsychologists = await Psychologist.find();
+  for (const psych of allPsychologists) {
     const patients = await Patient.find({ psychologistId: psych._id });
     results.relationTests.push({
       teste: `Psicólogo (${psych.name}) -> Pacientes`,
@@ -398,9 +483,9 @@ async function testRelations() {
     console.log(`   ${patients.length > 0 ? '✅' : '⚠️'} ${psych.name} -> Pacientes: ${patients.length} encontrado(s)`);
   }
 
-  // Teste 3: Paciente -> Agendamentos
-  const patients = await Patient.find({ psychologistId: { $in: psychologists.map(p => p._id) } });
-  for (const pat of patients) {
+  // Teste 4: Paciente -> Agendamentos
+  const allPatients = await Patient.find();
+  for (const pat of allPatients) {
     const appointments = await Appointment.find({ patientId: pat._id });
     results.relationTests.push({
       teste: `Paciente (${pat.name}) -> Agendamentos`,
@@ -410,7 +495,7 @@ async function testRelations() {
     console.log(`   ${appointments.length > 0 ? '✅' : '⚠️'} ${pat.name} -> Agendamentos: ${appointments.length} encontrado(s)`);
   }
 
-  // Teste 4: Agendamento -> Populando dados
+  // Teste 5: Agendamento -> Populando dados
   const sampleAppointment = await Appointment.findOne()
     .populate('patientId', 'name email')
     .populate('psychologistId', 'name email crp');
@@ -425,6 +510,23 @@ async function testRelations() {
         'Falha ao popular dados relacionados'
     });
     console.log(`   ${populateOk ? '✅' : '❌'} Population de agendamento: ${populateOk ? 'OK' : 'FALHA'}`);
+  }
+
+  // Teste 6: Paciente -> Population (clínica e psicólogo)
+  const samplePatient = await Patient.findOne({ clinicId: { $ne: null } })
+    .populate('clinicId', 'name email')
+    .populate('psychologistId', 'name email crp');
+
+  if (samplePatient) {
+    const populateOk = samplePatient.clinicId?.name;
+    results.relationTests.push({
+      teste: 'Paciente -> Population (clínica e psicólogo)',
+      resultado: populateOk ? '✅ OK' : '❌ FALHA',
+      detalhes: populateOk ?
+        `Clínica: ${samplePatient.clinicId.name}, Psicólogo: ${samplePatient.psychologistId?.name || 'Sem psicólogo'}` :
+        'Falha ao popular dados relacionados'
+    });
+    console.log(`   ${populateOk ? '✅' : '❌'} Population de paciente: ${populateOk ? 'OK' : 'FALHA'}`);
   }
 }
 

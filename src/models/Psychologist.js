@@ -69,6 +69,75 @@ const psychologistSchema = new mongoose.Schema(
       maxlength: [10000, 'System prompt deve ter no máximo 10000 caracteres'],
       trim: true,
     },
+    settings: {
+      defaultSessionDuration: {
+        type: Number,
+        default: 50,
+        min: [15, 'Duração mínima de 15 minutos'],
+        max: [240, 'Duração máxima de 240 minutos'],
+      },
+      acceptsOnline: {
+        type: Boolean,
+        default: true,
+      },
+      acceptsInPerson: {
+        type: Boolean,
+        default: true,
+      },
+      preferredRoomId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Room',
+        default: null,
+      },
+    },
+    // Configurações de pagamento do psicólogo
+    paymentSettings: {
+      // Valor padrão da sessão (usado quando psicólogo é independente ou tem valor próprio)
+      defaultSessionValue: {
+        type: Number,
+        default: 0,
+        min: [0, 'Valor não pode ser negativo'],
+      },
+      // Se usa o valor da clínica ou valor próprio (quando vinculado a clínica)
+      useClinicValue: {
+        type: Boolean,
+        default: true,
+      },
+      // Se aceita plano de saúde (psicólogo independente)
+      acceptsHealthInsurance: {
+        type: Boolean,
+        default: false,
+      },
+      // Métodos de pagamento aceitos (psicólogo independente)
+      acceptedPaymentMethods: {
+        type: [String],
+        default: ['cash', 'pix'],
+        validate: {
+          validator: function (v) {
+            const validMethods = ['cash', 'credit_card', 'debit_card', 'pix', 'bank_transfer', 'health_insurance', 'other'];
+            return v.every((method) => validMethods.includes(method));
+          },
+          message: 'Método de pagamento inválido',
+        },
+      },
+      // Dados bancários para recebimento (psicólogo independente)
+      bankInfo: {
+        bankName: { type: String, trim: true },
+        bankCode: { type: String, trim: true },
+        agency: { type: String, trim: true },
+        account: { type: String, trim: true },
+        accountType: {
+          type: String,
+          enum: ['checking', 'savings'],
+          default: 'checking',
+        },
+        pixKey: { type: String, trim: true },
+        pixKeyType: {
+          type: String,
+          enum: ['cpf', 'cnpj', 'email', 'phone', 'random'],
+        },
+      },
+    },
     googleId: {
       type: String,
       unique: true,

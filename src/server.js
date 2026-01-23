@@ -91,6 +91,9 @@ const patientRoutes = require('./routes/patient.routes');
 const documentRoutes = require('./routes/document.routes');
 const chatRoutes = require('./routes/chat.routes');
 const appointmentRoutes = require('./routes/appointment.routes');
+const workingHoursRoutes = require('./routes/workingHours.routes');
+const availabilityRoutes = require('./routes/availability.routes');
+const paymentRoutes = require('./routes/payment.routes');
 
 // Usar rotas
 app.use('/api/auth', authRoutes);
@@ -101,6 +104,9 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/working-hours', workingHoursRoutes);
+app.use('/api/availability', availabilityRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Rota 404 - Não encontrado
 app.use((req, res) => {

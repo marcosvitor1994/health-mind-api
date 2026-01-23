@@ -12,11 +12,16 @@ const {
   linkPatient,
   unlinkPatient,
   assignPsychologistToPatient,
+  getFinancialSummary,
+  updatePaymentSettings,
+  getPaymentSettings,
 } = require('../controllers/clinicController');
+const { getClinicOccupancy, getRoomOccupancy } = require('../controllers/availabilityController');
 const { protect } = require('../middleware/auth');
 const { authorize } = require('../middleware/roleCheck');
 const { singleImage } = require('../config/multer');
 const { handleLogoUpload, handleMulterError } = require('../middleware/uploadHandler');
+const roomRoutes = require('./room.routes');
 
 /**
  * @route   GET /api/clinics/:id
@@ -102,5 +107,45 @@ router.post('/:clinicId/patients/:patientId/unlink', protect, authorize('clinic'
  * @access  Private (Clinic)
  */
 router.put('/:clinicId/patients/:patientId/assign-psychologist', protect, authorize('clinic'), assignPsychologistToPatient);
+
+/**
+ * @route   GET /api/clinics/:clinicId/occupancy
+ * @desc    Obter taxa de ocupação da clínica
+ * @access  Private (Clinic)
+ */
+router.get('/:clinicId/occupancy', protect, authorize('clinic'), getClinicOccupancy);
+
+/**
+ * @route   GET /api/clinics/:clinicId/rooms/:roomId/occupancy
+ * @desc    Obter taxa de ocupação de uma sala específica
+ * @access  Private (Clinic)
+ */
+router.get('/:clinicId/rooms/:roomId/occupancy', protect, authorize('clinic', 'psychologist'), getRoomOccupancy);
+
+/**
+ * @route   GET /api/clinics/:id/financial-summary
+ * @desc    Obter resumo financeiro da clínica
+ * @access  Private (Clinic)
+ */
+router.get('/:id/financial-summary', protect, authorize('clinic'), getFinancialSummary);
+
+/**
+ * @route   GET /api/clinics/:id/payment-settings
+ * @desc    Obter configurações de pagamento da clínica
+ * @access  Private (Clinic)
+ */
+router.get('/:id/payment-settings', protect, authorize('clinic'), getPaymentSettings);
+
+/**
+ * @route   PUT /api/clinics/:id/payment-settings
+ * @desc    Atualizar configurações de pagamento da clínica
+ * @access  Private (Clinic)
+ */
+router.put('/:id/payment-settings', protect, authorize('clinic'), updatePaymentSettings);
+
+/**
+ * Rotas de salas aninhadas em /api/clinics/:clinicId/rooms
+ */
+router.use('/:clinicId/rooms', roomRoutes);
 
 module.exports = router;

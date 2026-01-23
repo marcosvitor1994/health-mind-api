@@ -1,6 +1,8 @@
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
 const Psychologist = require('../models/Psychologist');
+const Room = require('../models/Room');
+const Clinic = require('../models/Clinic');
 const { isValidObjectId } = require('../utils/validator');
 
 /**
@@ -10,7 +12,7 @@ const { isValidObjectId } = require('../utils/validator');
  */
 exports.createAppointment = async (req, res) => {
   try {
-    const { patientId, psychologistId, date, duration, type, notes } = req.body;
+    const { patientId, psychologistId, date, duration, type, notes, roomId } = req.body;
 
     // Validações
     if (!patientId || !psychologistId || !date) {
@@ -25,6 +27,14 @@ exports.createAppointment = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'IDs inválidos',
+      });
+    }
+
+    // Validar roomId se fornecido
+    if (roomId && !isValidObjectId(roomId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID da sala inválido',
       });
     }
 
@@ -63,17 +73,57 @@ exports.createAppointment = async (req, res) => {
       });
     }
 
-    // Verificar conflito de horário
-    const hasConflict = await Appointment.checkConflict(
-      psychologistId,
-      appointmentDate,
-      duration || 50
-    );
+    // Validar sala se fornecida
+    let validatedRoomId = null;
+    if (roomId) {
+      const room = await Room.findOne({
+        _id: roomId,
+        isActive: true,
+        deletedAt: null,
+      });
 
-    if (hasConflict) {
+      if (!room) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sala não encontrada ou inativa',
+        });
+      }
+
+      // Verificar se a sala pertence à clínica do psicólogo
+      if (psychologist.clinicId && room.clinicId.toString() !== psychologist.clinicId.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sala não pertence à clínica do psicólogo',
+        });
+      }
+
+      validatedRoomId = roomId;
+    }
+
+    // Verificar se clínica requer sala para consultas presenciais
+    if (type === 'in_person' && psychologist.clinicId) {
+      const clinic = await Clinic.findById(psychologist.clinicId);
+      if (clinic?.settings?.requireRoomForInPerson && !validatedRoomId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Consultas presenciais nesta clínica requerem atribuição de sala',
+        });
+      }
+    }
+
+    // Verificar conflito de horário (psicólogo e sala)
+    const conflictResult = await Appointment.checkConflict({
+      psychologistId,
+      date: appointmentDate,
+      duration: duration || 50,
+      roomId: validatedRoomId,
+    });
+
+    if (conflictResult.hasConflict) {
       return res.status(409).json({
         success: false,
-        message: 'Já existe um agendamento neste horário',
+        message: conflictResult.message || 'Já existe um agendamento neste horário',
+        conflictType: conflictResult.type,
       });
     }
 
@@ -81,6 +131,8 @@ exports.createAppointment = async (req, res) => {
     const appointment = await Appointment.create({
       patientId,
       psychologistId,
+      clinicId: psychologist.clinicId || null,
+      roomId: validatedRoomId,
       date: appointmentDate,
       duration: duration || 50,
       type: type || 'online',
@@ -92,6 +144,7 @@ exports.createAppointment = async (req, res) => {
     await appointment.populate([
       { path: 'patientId', select: 'name email phone' },
       { path: 'psychologistId', select: 'name email crp' },
+      { path: 'roomId', select: 'name number' },
     ]);
 
     res.status(201).json({
@@ -130,7 +183,8 @@ exports.getAppointment = async (req, res) => {
     const appointment = await Appointment.findById(id)
       .notDeleted()
       .populate('patientId', 'name email phone avatar')
-      .populate('psychologistId', 'name email phone crp specialties avatar');
+      .populate('psychologistId', 'name email phone crp specialties avatar')
+      .populate('roomId', 'name number description');
 
     if (!appointment) {
       return res.status(404).json({
@@ -162,13 +216,21 @@ exports.getAppointment = async (req, res) => {
 exports.updateAppointment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, duration, type, notes, status } = req.body;
+    const { date, duration, type, notes, status, roomId } = req.body;
 
     // Validar ObjectId
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
         message: 'ID do agendamento inválido',
+      });
+    }
+
+    // Validar roomId se fornecido
+    if (roomId !== undefined && roomId !== null && !isValidObjectId(roomId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID da sala inválido',
       });
     }
 
@@ -190,10 +252,42 @@ exports.updateAppointment = async (req, res) => {
       });
     }
 
-    // Atualizar campos permitidos
-    if (date) {
-      const newDate = new Date(date);
+    // Validar sala se fornecida
+    let validatedRoomId = appointment.roomId;
+    if (roomId !== undefined) {
+      if (roomId === null) {
+        validatedRoomId = null;
+      } else {
+        const room = await Room.findOne({
+          _id: roomId,
+          isActive: true,
+          deletedAt: null,
+        });
 
+        if (!room) {
+          return res.status(404).json({
+            success: false,
+            message: 'Sala não encontrada ou inativa',
+          });
+        }
+
+        // Verificar se a sala pertence à clínica do agendamento
+        if (appointment.clinicId && room.clinicId.toString() !== appointment.clinicId.toString()) {
+          return res.status(400).json({
+            success: false,
+            message: 'Sala não pertence à clínica do agendamento',
+          });
+        }
+
+        validatedRoomId = roomId;
+      }
+    }
+
+    // Atualizar campos permitidos
+    const newDate = date ? new Date(date) : appointment.date;
+    const newDuration = duration || appointment.duration;
+
+    if (date) {
       // Validar data (deve ser no futuro)
       if (newDate <= new Date()) {
         return res.status(400).json({
@@ -201,28 +295,33 @@ exports.updateAppointment = async (req, res) => {
           message: 'Data do agendamento deve ser no futuro',
         });
       }
-
-      // Verificar conflito de horário (excluindo o agendamento atual)
-      const hasConflict = await Appointment.checkConflict(
-        appointment.psychologistId,
-        newDate,
-        duration || appointment.duration,
-        appointment._id
-      );
-
-      if (hasConflict) {
-        return res.status(409).json({
-          success: false,
-          message: 'Já existe um agendamento neste horário',
-        });
-      }
-
-      appointment.date = newDate;
     }
 
+    // Verificar conflito de horário (excluindo o agendamento atual)
+    // Verifica se mudou data, duração ou sala
+    if (date || duration || roomId !== undefined) {
+      const conflictResult = await Appointment.checkConflict({
+        psychologistId: appointment.psychologistId,
+        date: newDate,
+        duration: newDuration,
+        roomId: validatedRoomId,
+        excludeId: appointment._id,
+      });
+
+      if (conflictResult.hasConflict) {
+        return res.status(409).json({
+          success: false,
+          message: conflictResult.message || 'Já existe um agendamento neste horário',
+          conflictType: conflictResult.type,
+        });
+      }
+    }
+
+    if (date) appointment.date = newDate;
     if (duration) appointment.duration = duration;
     if (type) appointment.type = type;
     if (notes !== undefined) appointment.notes = notes;
+    if (roomId !== undefined) appointment.roomId = validatedRoomId;
     if (status) {
       // Validar status
       const validStatuses = ['scheduled', 'confirmed', 'completed', 'cancelled'];
@@ -241,6 +340,7 @@ exports.updateAppointment = async (req, res) => {
     await appointment.populate([
       { path: 'patientId', select: 'name email phone' },
       { path: 'psychologistId', select: 'name email crp' },
+      { path: 'roomId', select: 'name number' },
     ]);
 
     res.status(200).json({

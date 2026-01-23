@@ -14,6 +14,18 @@ const appointmentSchema = new mongoose.Schema(
       required: [true, 'Psicólogo é obrigatório'],
       index: true,
     },
+    clinicId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Clinic',
+      default: null,
+      index: true,
+    },
+    roomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Room',
+      default: null,
+      index: true,
+    },
     date: {
       type: Date,
       required: [true, 'Data é obrigatória'],
@@ -69,6 +81,24 @@ const appointmentSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, 'Motivo do cancelamento deve ter no máximo 500 caracteres'],
     },
+    // Campos de pagamento
+    paymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Payment',
+      default: null,
+      index: true,
+    },
+    // Valor da sessão (pode ser definido no momento do agendamento)
+    sessionValue: {
+      type: Number,
+      default: null,
+      min: [0, 'Valor não pode ser negativo'],
+    },
+    // Se o pagamento é obrigatório para esta sessão
+    paymentRequired: {
+      type: Boolean,
+      default: true,
+    },
     deletedAt: {
       type: Date,
       default: null,
@@ -91,6 +121,8 @@ appointmentSchema.index({ patientId: 1, date: 1 });
 appointmentSchema.index({ psychologistId: 1, status: 1 });
 appointmentSchema.index({ date: 1, status: 1 });
 appointmentSchema.index({ deletedAt: 1 });
+appointmentSchema.index({ roomId: 1, date: 1 });
+appointmentSchema.index({ clinicId: 1, date: 1 });
 
 // Query helper para filtrar deletados
 appointmentSchema.query.notDeleted = function () {
@@ -131,13 +163,25 @@ appointmentSchema.virtual('isUpcoming').get(function () {
   return diffHours > 0 && diffHours <= 24;
 });
 
-// Método estático para verificar conflitos de horário
-appointmentSchema.statics.checkConflict = async function (psychologistId, date, duration, excludeId = null) {
-  const startTime = new Date(date);
-  const endTime = new Date(startTime.getTime() + duration * 60000);
+// Método estático para verificar conflitos de horário (psicólogo e/ou sala)
+appointmentSchema.statics.checkConflict = async function (params) {
+  const { psychologistId, date, duration, roomId = null, excludeId = null } = params;
 
-  const query = {
-    psychologistId,
+  // Se receber parâmetros no formato antigo (para compatibilidade)
+  const actualParams =
+    typeof params === 'object' && params.psychologistId
+      ? params
+      : {
+          psychologistId: arguments[0],
+          date: arguments[1],
+          duration: arguments[2],
+          excludeId: arguments[3],
+        };
+
+  const startTime = new Date(actualParams.date);
+  const endTime = new Date(startTime.getTime() + actualParams.duration * 60000);
+
+  const baseQuery = {
     status: { $in: ['scheduled', 'confirmed'] },
     deletedAt: null,
     $or: [
@@ -163,12 +207,45 @@ appointmentSchema.statics.checkConflict = async function (psychologistId, date, 
     ],
   };
 
-  if (excludeId) {
-    query._id = { $ne: excludeId };
+  if (actualParams.excludeId) {
+    baseQuery._id = { $ne: actualParams.excludeId };
   }
 
-  const conflicts = await this.find(query);
-  return conflicts.length > 0;
+  // Verifica conflito do psicólogo
+  const psychologistQuery = { ...baseQuery, psychologistId: actualParams.psychologistId };
+  const psychologistConflict = await this.findOne(psychologistQuery);
+
+  if (psychologistConflict) {
+    return {
+      hasConflict: true,
+      type: 'psychologist',
+      conflictWith: psychologistConflict,
+      message: 'Psicólogo já possui agendamento neste horário',
+    };
+  }
+
+  // Verifica conflito de sala (apenas se roomId foi informado)
+  if (actualParams.roomId) {
+    const roomQuery = { ...baseQuery, roomId: actualParams.roomId };
+    const roomConflict = await this.findOne(roomQuery);
+
+    if (roomConflict) {
+      return {
+        hasConflict: true,
+        type: 'room',
+        conflictWith: roomConflict,
+        message: 'Sala já está ocupada neste horário',
+      };
+    }
+  }
+
+  return { hasConflict: false };
+};
+
+// Método de compatibilidade para código antigo que usa retorno booleano
+appointmentSchema.statics.hasConflict = async function (psychologistId, date, duration, excludeId = null) {
+  const result = await this.checkConflict({ psychologistId, date, duration, excludeId });
+  return result.hasConflict;
 };
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);

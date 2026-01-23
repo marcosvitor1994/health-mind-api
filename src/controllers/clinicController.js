@@ -4,6 +4,8 @@ const Patient = require('../models/Patient');
 const Appointment = require('../models/Appointment');
 const { processImageUpload, validateFileSize } = require('../utils/fileHelper');
 const { isValidObjectId } = require('../utils/validator');
+const occupancyService = require('../services/occupancyService');
+const paymentService = require('../services/paymentService');
 
 /**
  * Obter dados da clínica
@@ -747,6 +749,35 @@ exports.getStats = async (req, res) => {
       createdAt: { $gte: currentMonth },
     });
 
+    // Agendamentos de hoje
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const appointmentsToday = await Appointment.countDocuments({
+      psychologistId: { $in: psychologistIds },
+      deletedAt: null,
+      date: { $gte: today, $lt: tomorrow },
+      status: { $in: ['scheduled', 'confirmed'] },
+    });
+
+    // Calcular taxa de ocupação do mês atual
+    let occupancyRate = 0;
+    try {
+      const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+      const occupancy = await occupancyService.calculateOccupancyRate({
+        entityType: 'clinic',
+        entityId: id,
+        startDate: currentMonth.toISOString().split('T')[0],
+        endDate: endOfMonth.toISOString().split('T')[0],
+      });
+      occupancyRate = occupancy.occupancyRate;
+    } catch (occupancyError) {
+      console.error('Erro ao calcular taxa de ocupação:', occupancyError);
+      // Continua com occupancyRate = 0 se houver erro
+    }
+
     res.status(200).json({
       success: true,
       message: 'Estatísticas obtidas com sucesso',
@@ -755,6 +786,8 @@ exports.getStats = async (req, res) => {
         totalPatients,
         totalAppointments,
         appointmentsThisMonth,
+        appointmentsToday,
+        occupancyRate,
         appointmentsByStatus: appointmentsByStatus.reduce((acc, item) => {
           acc[item._id] = item.count;
           return acc;
@@ -766,6 +799,178 @@ exports.getStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar estatísticas',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Obter resumo financeiro da clínica
+ * @route GET /api/clinics/:id/financial-summary
+ * @access Private (Clinic)
+ */
+exports.getFinancialSummary = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Validar ObjectId
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID da clínica inválido',
+      });
+    }
+
+    // Verificar datas obrigatórias
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Data inicial e final são obrigatórias',
+      });
+    }
+
+    // Verificar se clínica existe
+    const clinic = await Clinic.findById(id).notDeleted();
+    if (!clinic) {
+      return res.status(404).json({
+        success: false,
+        message: 'Clínica não encontrada',
+      });
+    }
+
+    const summary = await paymentService.getClinicFinancialSummary(id, startDate, endDate);
+
+    res.status(200).json({
+      success: true,
+      message: 'Resumo financeiro obtido com sucesso',
+      data: summary,
+    });
+  } catch (error) {
+    console.error('Erro ao obter resumo financeiro:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao obter resumo financeiro',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Atualizar configurações de pagamento da clínica
+ * @route PUT /api/clinics/:id/payment-settings
+ * @access Private (Clinic)
+ */
+exports.updatePaymentSettings = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      defaultSessionValue,
+      clinicPercentage,
+      acceptsHealthInsurance,
+      acceptedHealthInsurances,
+      defaultPaymentDueDays,
+      acceptedPaymentMethods,
+      bankInfo,
+    } = req.body;
+
+    // Validar ObjectId
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID da clínica inválido',
+      });
+    }
+
+    // Buscar clínica
+    const clinic = await Clinic.findById(id).notDeleted();
+    if (!clinic) {
+      return res.status(404).json({
+        success: false,
+        message: 'Clínica não encontrada',
+      });
+    }
+
+    // Atualizar configurações de pagamento
+    if (!clinic.paymentSettings) {
+      clinic.paymentSettings = {};
+    }
+
+    if (defaultSessionValue !== undefined) {
+      clinic.paymentSettings.defaultSessionValue = defaultSessionValue;
+    }
+    if (clinicPercentage !== undefined) {
+      clinic.paymentSettings.clinicPercentage = clinicPercentage;
+    }
+    if (acceptsHealthInsurance !== undefined) {
+      clinic.paymentSettings.acceptsHealthInsurance = acceptsHealthInsurance;
+    }
+    if (acceptedHealthInsurances !== undefined) {
+      clinic.paymentSettings.acceptedHealthInsurances = acceptedHealthInsurances;
+    }
+    if (defaultPaymentDueDays !== undefined) {
+      clinic.paymentSettings.defaultPaymentDueDays = defaultPaymentDueDays;
+    }
+    if (acceptedPaymentMethods !== undefined) {
+      clinic.paymentSettings.acceptedPaymentMethods = acceptedPaymentMethods;
+    }
+    if (bankInfo !== undefined) {
+      clinic.paymentSettings.bankInfo = { ...clinic.paymentSettings.bankInfo, ...bankInfo };
+    }
+
+    await clinic.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Configurações de pagamento atualizadas com sucesso',
+      data: clinic.paymentSettings,
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar configurações de pagamento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar configurações de pagamento',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Obter configurações de pagamento da clínica
+ * @route GET /api/clinics/:id/payment-settings
+ * @access Private (Clinic)
+ */
+exports.getPaymentSettings = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validar ObjectId
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID da clínica inválido',
+      });
+    }
+
+    // Buscar clínica
+    const clinic = await Clinic.findById(id).notDeleted();
+    if (!clinic) {
+      return res.status(404).json({
+        success: false,
+        message: 'Clínica não encontrada',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Configurações de pagamento obtidas com sucesso',
+      data: clinic.paymentSettings || {},
+    });
+  } catch (error) {
+    console.error('Erro ao obter configurações de pagamento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao obter configurações de pagamento',
       error: error.message,
     });
   }

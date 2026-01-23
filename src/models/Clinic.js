@@ -54,6 +54,84 @@ const clinicSchema = new mongoose.Schema(
       type: String, // Base64 encoded image
       default: null,
     },
+    settings: {
+      defaultSessionDuration: {
+        type: Number,
+        default: 50,
+        min: [15, 'Duração mínima de 15 minutos'],
+        max: [240, 'Duração máxima de 240 minutos'],
+      },
+      allowOnlineAppointments: {
+        type: Boolean,
+        default: true,
+      },
+      requireRoomForInPerson: {
+        type: Boolean,
+        default: false,
+      },
+    },
+    // Configurações de pagamento
+    paymentSettings: {
+      // Valor padrão da sessão na clínica
+      defaultSessionValue: {
+        type: Number,
+        default: 0,
+        min: [0, 'Valor não pode ser negativo'],
+      },
+      // Porcentagem que a clínica fica (0-100)
+      clinicPercentage: {
+        type: Number,
+        default: 30,
+        min: [0, 'Porcentagem mínima é 0'],
+        max: [100, 'Porcentagem máxima é 100'],
+      },
+      // Se aceita plano de saúde
+      acceptsHealthInsurance: {
+        type: Boolean,
+        default: false,
+      },
+      // Planos de saúde aceitos
+      acceptedHealthInsurances: [{
+        name: { type: String, trim: true },
+        code: { type: String, trim: true },
+      }],
+      // Prazo padrão de pagamento (dias)
+      defaultPaymentDueDays: {
+        type: Number,
+        default: 0, // 0 = pagamento no ato
+        min: 0,
+        max: 90,
+      },
+      // Métodos de pagamento aceitos
+      acceptedPaymentMethods: {
+        type: [String],
+        default: ['cash', 'pix', 'credit_card', 'debit_card'],
+        validate: {
+          validator: function (v) {
+            const validMethods = ['cash', 'credit_card', 'debit_card', 'pix', 'bank_transfer', 'health_insurance', 'other'];
+            return v.every((method) => validMethods.includes(method));
+          },
+          message: 'Método de pagamento inválido',
+        },
+      },
+      // Dados bancários para recebimento
+      bankInfo: {
+        bankName: { type: String, trim: true },
+        bankCode: { type: String, trim: true },
+        agency: { type: String, trim: true },
+        account: { type: String, trim: true },
+        accountType: {
+          type: String,
+          enum: ['checking', 'savings'],
+          default: 'checking',
+        },
+        pixKey: { type: String, trim: true },
+        pixKeyType: {
+          type: String,
+          enum: ['cpf', 'cnpj', 'email', 'phone', 'random'],
+        },
+      },
+    },
     googleId: {
       type: String,
       unique: true,

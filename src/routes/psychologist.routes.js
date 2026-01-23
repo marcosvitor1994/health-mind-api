@@ -7,6 +7,7 @@ const {
   getPatients,
   getAppointments,
 } = require('../controllers/psychologistController');
+const { getPsychologistOccupancy } = require('../controllers/availabilityController');
 const { protect } = require('../middleware/auth');
 const { authorize, authorizeClinicForPsychologist } = require('../middleware/roleCheck');
 const { singleImage } = require('../config/multer');
@@ -59,6 +60,19 @@ router.get(
   authorize('psychologist', 'clinic'),
   authorizeClinicForPsychologist,
   getAppointments
+);
+
+/**
+ * @route   GET /api/psychologists/:id/occupancy
+ * @desc    Obter taxa de ocupação do psicólogo
+ * @access  Private (Psychologist, Clinic)
+ */
+router.get(
+  '/:id/occupancy',
+  protect,
+  authorize('psychologist', 'clinic'),
+  authorizeClinicForPsychologist,
+  getPsychologistOccupancy
 );
 
 module.exports = router;

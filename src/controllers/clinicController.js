@@ -214,11 +214,43 @@ exports.getPsychologists = async (req, res) => {
 
     const total = await Psychologist.countDocuments({ ...query, deletedAt: null });
 
+    // Adicionar contagem de pacientes e próxima consulta para cada psicólogo
+    const Patient = require('../models/Patient');
+    const Appointment = require('../models/Appointment');
+
+    const psychologistsWithStats = await Promise.all(
+      psychologists.map(async (psy) => {
+        const psychologistObj = psy.toObject();
+
+        // Contar pacientes
+        const patientCount = await Patient.countDocuments({
+          psychologistId: psy._id,
+          deletedAt: null,
+        });
+
+        // Buscar próxima consulta (hoje ou futura)
+        const now = new Date();
+        const nextAppointment = await Appointment.findOne({
+          psychologistId: psy._id,
+          dateTime: { $gte: now },
+          status: { $in: ['scheduled', 'confirmed'] },
+        })
+          .sort({ dateTime: 1 })
+          .select('dateTime');
+
+        return {
+          ...psychologistObj,
+          patientCount,
+          nextAppointment: nextAppointment?.dateTime,
+        };
+      })
+    );
+
     res.status(200).json({
       success: true,
       message: 'Psicólogos encontrados com sucesso',
       data: {
-        psychologists,
+        psychologists: psychologistsWithStats,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),

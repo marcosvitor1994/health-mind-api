@@ -8,7 +8,7 @@ const { isValidObjectId } = require('../utils/validator');
 /**
  * Criar agendamento
  * @route POST /api/appointments
- * @access Private (Patient, Psychologist)
+ * @access Private (Patient, Psychologist, Clinic)
  */
 exports.createAppointment = async (req, res) => {
   try {
@@ -65,12 +65,36 @@ exports.createAppointment = async (req, res) => {
       });
     }
 
-    // Verificar se o paciente pertence ao psicólogo
-    if (patient.psychologistId.toString() !== psychologistId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Este paciente não está associado a este psicólogo',
-      });
+    // Validações específicas por role
+    if (req.user.role === 'clinic') {
+      // Clínica criando agendamento: validar que psicólogo pertence à clínica
+      if (!psychologist.clinicId || psychologist.clinicId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Psicólogo não pertence a esta clínica',
+        });
+      }
+
+      // Validar que paciente pertence à clínica (diretamente ou via psicólogo da clínica)
+      const patientBelongsToClinic =
+        (patient.clinicId && patient.clinicId.toString() === req.user._id.toString()) ||
+        (patient.psychologistId && psychologist.clinicId &&
+         psychologist.clinicId.toString() === req.user._id.toString());
+
+      if (!patientBelongsToClinic) {
+        return res.status(403).json({
+          success: false,
+          message: 'Paciente não pertence a esta clínica',
+        });
+      }
+    } else {
+      // Psicólogo ou Paciente criando agendamento: validar vínculo paciente-psicólogo
+      if (!patient.psychologistId || patient.psychologistId.toString() !== psychologistId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Este paciente não está associado a este psicólogo',
+        });
+      }
     }
 
     // Validar sala se fornecida

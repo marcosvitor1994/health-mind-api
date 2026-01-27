@@ -7,7 +7,9 @@
       "Bash(findstr:*)",
       "Bash(taskkill /PID 231140 /F)",
       "Bash(cmd.exe //c \"taskkill /PID 231140 /F\")",
-      "Bash(node scripts/testPopulateAndAuth.js:*)"
+      "Bash(node scripts/testPopulateAndAuth.js:*)",
+      "Bash(dir:*)",
+      "Bash(node -e:*)"
     ]
   }
 }

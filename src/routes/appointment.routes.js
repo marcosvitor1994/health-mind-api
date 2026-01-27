@@ -14,9 +14,9 @@ const { authorize } = require('../middleware/roleCheck');
 /**
  * @route   POST /api/appointments
  * @desc    Criar novo agendamento
- * @access  Private (Psychologist, Patient)
+ * @access  Private (Psychologist, Patient, Clinic)
  */
-router.post('/', protect, authorize('psychologist', 'patient'), createAppointment);
+router.post('/', protect, authorize('psychologist', 'patient', 'clinic'), createAppointment);
 
 /**
  * @route   GET /api/appointments/:id

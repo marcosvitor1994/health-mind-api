@@ -3,6 +3,7 @@ const Psychologist = require('../models/Psychologist');
 const Patient = require('../models/Patient');
 const Appointment = require('../models/Appointment');
 const { processImageUpload, validateFileSize } = require('../utils/fileHelper');
+const { uploadToFirebase, deleteFromFirebase } = require('../config/firebase');
 const { isValidObjectId } = require('../utils/validator');
 const occupancyService = require('../services/occupancyService');
 const paymentService = require('../services/paymentService');
@@ -142,9 +143,16 @@ exports.uploadLogo = async (req, res) => {
       });
     }
 
-    // Processar e salvar logo
-    const logoBase64 = await processImageUpload(req.file.buffer, req.file.mimetype, 'logo');
-    clinic.logo = logoBase64;
+    // Deletar logo antigo do Firebase se existir
+    if (clinic.logo) {
+      await deleteFromFirebase(clinic.logo);
+    }
+
+    // Processar e fazer upload do logo
+    const { buffer, mimetype } = await processImageUpload(req.file.buffer, req.file.mimetype, 'logo');
+    const filePath = `logos/${id}_${Date.now()}.png`;
+    const logoUrl = await uploadToFirebase(buffer, filePath, mimetype);
+    clinic.logo = logoUrl;
 
     await clinic.save();
 

@@ -2,6 +2,7 @@ const Psychologist = require('../models/Psychologist');
 const Patient = require('../models/Patient');
 const Appointment = require('../models/Appointment');
 const { processImageUpload, validateFileSize } = require('../utils/fileHelper');
+const { uploadToFirebase, deleteFromFirebase } = require('../config/firebase');
 const { isValidObjectId } = require('../utils/validator');
 
 /**
@@ -143,9 +144,17 @@ exports.uploadAvatar = async (req, res) => {
       });
     }
 
-    // Processar e salvar avatar
-    const avatarBase64 = await processImageUpload(req.file.buffer, req.file.mimetype, 'avatar');
-    psychologist.avatar = avatarBase64;
+    // Deletar avatar antigo do Firebase se existir
+    if (psychologist.avatar) {
+      await deleteFromFirebase(psychologist.avatar);
+    }
+
+    // Processar e fazer upload do avatar
+    const { buffer, mimetype } = await processImageUpload(req.file.buffer, req.file.mimetype, 'avatar');
+    const ext = mimetype === 'image/png' ? 'png' : 'jpg';
+    const filePath = `avatars/psychologists/${id}_${Date.now()}.${ext}`;
+    const avatarUrl = await uploadToFirebase(buffer, filePath, mimetype);
+    psychologist.avatar = avatarUrl;
 
     await psychologist.save();
 

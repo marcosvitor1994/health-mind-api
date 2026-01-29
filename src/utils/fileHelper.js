@@ -135,29 +135,32 @@ const isValidBase64 = (str) => {
 };
 
 /**
- * Processa upload de imagem (redimensiona e converte para Base64)
+ * Processa upload de imagem (redimensiona e retorna buffer otimizado)
  * @param {Buffer} buffer - Buffer da imagem
  * @param {String} mimetype - Tipo MIME
  * @param {String} type - Tipo de imagem ('avatar', 'logo', 'general')
- * @returns {Promise<String>} String Base64 otimizada
+ * @returns {Promise<{buffer: Buffer, mimetype: String}>} Buffer otimizado e mimetype
  */
 const processImageUpload = async (buffer, mimetype, type = 'general') => {
   try {
     let processedBuffer;
+    let outputMimetype;
 
     switch (type) {
       case 'avatar':
         processedBuffer = await optimizeAvatar(buffer);
+        outputMimetype = 'image/jpeg';
         break;
       case 'logo':
         processedBuffer = await optimizeLogo(buffer);
+        outputMimetype = 'image/png';
         break;
       default:
         processedBuffer = await resizeImage(buffer);
+        outputMimetype = 'image/jpeg';
     }
 
-    // Converte para Base64
-    return bufferToBase64(processedBuffer, 'image/jpeg');
+    return { buffer: processedBuffer, mimetype: outputMimetype };
   } catch (error) {
     throw new Error('Erro ao processar imagem: ' + error.message);
   }

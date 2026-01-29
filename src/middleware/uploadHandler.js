@@ -1,4 +1,5 @@
-const { processImageUpload, bufferToBase64, validateFileSize } = require('../utils/fileHelper');
+const { processImageUpload, validateFileSize } = require('../utils/fileHelper');
+const { uploadToFirebase } = require('../config/firebase');
 
 /**
  * Middleware para processar upload de avatar
@@ -9,7 +10,6 @@ const handleAvatarUpload = async (req, res, next) => {
       return next();
     }
 
-    // Valida tamanho do arquivo
     const maxSize = parseInt(process.env.MAX_IMAGE_SIZE) || 5 * 1024 * 1024;
 
     if (!validateFileSize(req.file.buffer, maxSize)) {
@@ -19,11 +19,14 @@ const handleAvatarUpload = async (req, res, next) => {
       });
     }
 
-    // Processa e otimiza imagem
-    const base64Image = await processImageUpload(req.file.buffer, req.file.mimetype, 'avatar');
+    const { buffer, mimetype } = await processImageUpload(req.file.buffer, req.file.mimetype, 'avatar');
 
-    // Adiciona ao body para ser usado no controller
-    req.body.avatar = base64Image;
+    const entityId = req.params.id || 'unknown';
+    const ext = mimetype === 'image/png' ? 'png' : 'jpg';
+    const filePath = `avatars/${entityId}_${Date.now()}.${ext}`;
+
+    const url = await uploadToFirebase(buffer, filePath, mimetype);
+    req.body.avatar = url;
 
     next();
   } catch (error) {
@@ -44,7 +47,6 @@ const handleLogoUpload = async (req, res, next) => {
       return next();
     }
 
-    // Valida tamanho do arquivo
     const maxSize = parseInt(process.env.MAX_IMAGE_SIZE) || 5 * 1024 * 1024;
 
     if (!validateFileSize(req.file.buffer, maxSize)) {
@@ -54,11 +56,13 @@ const handleLogoUpload = async (req, res, next) => {
       });
     }
 
-    // Processa e otimiza imagem
-    const base64Image = await processImageUpload(req.file.buffer, req.file.mimetype, 'logo');
+    const { buffer, mimetype } = await processImageUpload(req.file.buffer, req.file.mimetype, 'logo');
 
-    // Adiciona ao body para ser usado no controller
-    req.body.logo = base64Image;
+    const entityId = req.params.id || 'unknown';
+    const filePath = `logos/${entityId}_${Date.now()}.png`;
+
+    const url = await uploadToFirebase(buffer, filePath, mimetype);
+    req.body.logo = url;
 
     next();
   } catch (error) {
@@ -79,7 +83,6 @@ const handlePDFUpload = async (req, res, next) => {
       return next();
     }
 
-    // Valida tamanho do arquivo
     const maxSize = parseInt(process.env.MAX_PDF_SIZE) || 10 * 1024 * 1024;
 
     if (!validateFileSize(req.file.buffer, maxSize)) {
@@ -89,11 +92,11 @@ const handlePDFUpload = async (req, res, next) => {
       });
     }
 
-    // Converte PDF para Base64
-    const base64PDF = bufferToBase64(req.file.buffer, req.file.mimetype);
+    const entityId = req.params.id || 'unknown';
+    const filePath = `documents/${entityId}_${Date.now()}.pdf`;
 
-    // Adiciona ao body para ser usado no controller
-    req.body.pdfFile = base64PDF;
+    const url = await uploadToFirebase(req.file.buffer, filePath, 'application/pdf');
+    req.body.pdfFile = url;
 
     next();
   } catch (error) {
@@ -114,7 +117,6 @@ const handleImageUpload = async (req, res, next) => {
       return next();
     }
 
-    // Valida tamanho do arquivo
     const maxSize = parseInt(process.env.MAX_IMAGE_SIZE) || 5 * 1024 * 1024;
 
     if (!validateFileSize(req.file.buffer, maxSize)) {
@@ -124,11 +126,12 @@ const handleImageUpload = async (req, res, next) => {
       });
     }
 
-    // Processa e otimiza imagem
-    const base64Image = await processImageUpload(req.file.buffer, req.file.mimetype, 'general');
+    const { buffer, mimetype } = await processImageUpload(req.file.buffer, req.file.mimetype, 'general');
 
-    // Adiciona ao body para ser usado no controller
-    req.body.image = base64Image;
+    const filePath = `images/${Date.now()}.jpg`;
+
+    const url = await uploadToFirebase(buffer, filePath, mimetype);
+    req.body.image = url;
 
     next();
   } catch (error) {

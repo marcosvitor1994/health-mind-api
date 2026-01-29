@@ -1,7 +1,8 @@
 const Document = require('../models/Document');
 const Patient = require('../models/Patient');
 const Psychologist = require('../models/Psychologist');
-const { bufferToBase64, validateFileSize, isValidBase64 } = require('../utils/fileHelper');
+const { validateFileSize } = require('../utils/fileHelper');
+const { uploadToFirebase, deleteFromFirebase } = require('../config/firebase');
 const { isValidObjectId, sanitizeString } = require('../utils/validator');
 
 /**
@@ -283,9 +284,15 @@ exports.uploadPDF = async (req, res) => {
       });
     }
 
-    // Converter para Base64 e salvar
-    const pdfBase64 = bufferToBase64(req.file.buffer, req.file.mimetype);
-    document.pdfFile = pdfBase64;
+    // Deletar PDF antigo do Firebase se existir
+    if (document.pdfFile) {
+      await deleteFromFirebase(document.pdfFile);
+    }
+
+    // Upload para Firebase
+    const filePath = `documents/${id}_${Date.now()}.pdf`;
+    const pdfUrl = await uploadToFirebase(req.file.buffer, filePath, 'application/pdf');
+    document.pdfFile = pdfUrl;
 
     await document.save();
 

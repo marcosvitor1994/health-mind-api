@@ -69,6 +69,18 @@ const psychologistSchema = new mongoose.Schema(
       maxlength: [10000, 'System prompt deve ter no máximo 10000 caracteres'],
       trim: true,
     },
+    // Perfil terapêutico (dados brutos do wizard de cadastro)
+    therapeuticProfile: {
+      formacaoAcademica: { type: String, trim: true },
+      abordagemPrincipal: { type: String, trim: true },
+      descricaoTrabalho: { type: String, trim: true, maxlength: 200 },
+      publicosEspecificos: { type: [String], default: [] },
+      temasEspecializados: { type: [String], default: [] },
+      tonsComunicacao: { type: [String], default: [] },
+      tecnicasFavoritas: { type: [String], default: [] },
+      restricoesTematicas: { type: String, trim: true },
+      diferenciais: { type: String, trim: true, maxlength: 100 },
+    },
     settings: {
       defaultSessionDuration: {
         type: Number,

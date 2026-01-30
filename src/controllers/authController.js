@@ -537,13 +537,27 @@ exports.completeClinicRegistration = async (req, res) => {
  */
 exports.completePsychologistRegistration = async (req, res) => {
   try {
-    const { token, password, phone, bio } = req.body;
+    const {
+      token, password, phone, bio,
+      formacaoAcademica, abordagemPrincipal, descricaoTrabalho,
+      publicosEspecificos, temasEspecializados, tonsComunicacao,
+      tecnicasFavoritas, restricoesTematicas, diferenciais,
+      systemPrompt,
+    } = req.body;
 
     // Validações
     if (!token || !password) {
       return res.status(400).json({
         success: false,
         message: 'Token e senha são obrigatórios',
+      });
+    }
+
+    // Validar systemPrompt
+    if (systemPrompt && systemPrompt.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: 'System prompt excede o limite de 10000 caracteres',
       });
     }
 
@@ -591,6 +605,14 @@ exports.completePsychologistRegistration = async (req, res) => {
       });
     }
 
+    // Merge specialties: invitation + wizard
+    const allSpecialties = [
+      ...(invitation.preFilledData.specialties || []),
+      ...(publicosEspecificos || []),
+      ...(temasEspecializados || []),
+    ];
+    const uniqueSpecialties = [...new Set(allSpecialties)];
+
     // Criar psicólogo
     const psychologist = await Psychologist.create({
       name: invitation.preFilledData.name,
@@ -598,9 +620,21 @@ exports.completePsychologistRegistration = async (req, res) => {
       password,
       clinicId: invitation.preFilledData.clinicId,
       crp: invitation.preFilledData.crp,
-      specialties: invitation.preFilledData.specialties || [],
+      specialties: uniqueSpecialties,
       phone: phone || invitation.preFilledData.phone,
       bio,
+      systemPrompt: systemPrompt || null,
+      therapeuticProfile: {
+        formacaoAcademica: formacaoAcademica || null,
+        abordagemPrincipal: abordagemPrincipal || null,
+        descricaoTrabalho: descricaoTrabalho || null,
+        publicosEspecificos: publicosEspecificos || [],
+        temasEspecializados: temasEspecializados || [],
+        tonsComunicacao: tonsComunicacao || [],
+        tecnicasFavoritas: tecnicasFavoritas || [],
+        restricoesTematicas: restricoesTematicas || null,
+        diferenciais: diferenciais || null,
+      },
     });
 
     // Marcar convite como aceito

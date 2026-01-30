@@ -377,6 +377,61 @@ exports.validateInvitation = async (req, res) => {
 };
 
 /**
+ * Buscar convite pendente por email
+ * @route POST /api/invitations/lookup
+ * @access Public
+ */
+exports.lookupInvitation = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email é obrigatório',
+      });
+    }
+
+    const invitation = await Invitation.findOne({
+      email: email.toLowerCase().trim(),
+      status: 'pending',
+    }).sort({ createdAt: -1 });
+
+    if (!invitation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nenhum convite pendente encontrado para este email',
+      });
+    }
+
+    if (invitation.isExpired()) {
+      return res.status(400).json({
+        success: false,
+        message: 'O convite para este email expirou. Solicite um novo convite.',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token: invitation.token,
+        email: invitation.email,
+        role: invitation.role,
+        preFilledData: invitation.preFilledData,
+        expiresAt: invitation.expiresAt,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao buscar convite:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar convite',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Listar convites enviados
  * @route GET /api/invitations
  * @access Private (Clinic, Psychologist, Admin)

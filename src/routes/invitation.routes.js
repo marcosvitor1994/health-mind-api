@@ -5,6 +5,7 @@ const {
   invitePsychologist,
   invitePatient,
   validateInvitation,
+  lookupInvitation,
   listInvitations,
   cancelInvitation,
   resendInvitation,
@@ -32,6 +33,13 @@ router.post('/psychologist', protect, authorize('clinic'), invitePsychologist);
  * @access  Private (Psychologist, Clinic)
  */
 router.post('/patient', protect, authorize('psychologist', 'clinic'), invitePatient);
+
+/**
+ * @route   POST /api/invitations/lookup
+ * @desc    Buscar convite pendente por email
+ * @access  Public
+ */
+router.post('/lookup', lookupInvitation);
 
 /**
  * @route   GET /api/invitations/validate/:token

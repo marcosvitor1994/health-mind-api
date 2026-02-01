@@ -1,10 +1,14 @@
 const admin = require('firebase-admin');
 
+const privateKey = process.env.PRIVATE_KEY
+  ? process.env.PRIVATE_KEY.split(String.raw`\n`).join('\n')
+  : undefined;
+
 admin.initializeApp({
   credential: admin.credential.cert({
     projectId: process.env.PROJECT_ID,
     clientEmail: process.env.CLIENT_EMAIL,
-    privateKey: process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
+    privateKey,
   }),
   storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
 });
@@ -27,9 +31,7 @@ const uploadToFirebase = async (buffer, filePath, mimetype) => {
     },
   });
 
-  await file.makePublic();
-
-  return `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`;
 };
 
 /**
@@ -37,10 +39,20 @@ const uploadToFirebase = async (buffer, filePath, mimetype) => {
  * @param {String} fileUrl - URL pública do arquivo
  */
 const deleteFromFirebase = async (fileUrl) => {
-  if (!fileUrl || !fileUrl.includes(bucket.name)) return;
+  if (!fileUrl) return;
 
   try {
-    const filePath = fileUrl.split(`${bucket.name}/`)[1];
+    let filePath;
+
+    if (fileUrl.includes('/o/')) {
+      // Formato: https://firebasestorage.googleapis.com/v0/b/bucket/o/path?alt=media
+      const encoded = fileUrl.split('/o/')[1]?.split('?')[0];
+      filePath = encoded ? decodeURIComponent(encoded) : null;
+    } else if (fileUrl.includes(bucket.name)) {
+      // Formato antigo: https://storage.googleapis.com/bucket/path
+      filePath = fileUrl.split(`${bucket.name}/`)[1];
+    }
+
     if (filePath) {
       await bucket.file(filePath).delete();
     }

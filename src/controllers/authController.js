@@ -554,10 +554,10 @@ exports.completePsychologistRegistration = async (req, res) => {
     }
 
     // Validar systemPrompt
-    if (systemPrompt && systemPrompt.length > 10000) {
+    if (systemPrompt && systemPrompt.length > 20000) {
       return res.status(400).json({
         success: false,
-        message: 'System prompt excede o limite de 10000 caracteres',
+        message: 'System prompt excede o limite de 20000 caracteres',
       });
     }
 

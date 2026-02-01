@@ -66,7 +66,7 @@ const psychologistSchema = new mongoose.Schema(
     systemPrompt: {
       type: String,
       default: null,
-      maxlength: [10000, 'System prompt deve ter no máximo 10000 caracteres'],
+      maxlength: [20000, 'System prompt deve ter no máximo 20000 caracteres'],
       trim: true,
     },
     // Perfil terapêutico (dados brutos do wizard de cadastro)

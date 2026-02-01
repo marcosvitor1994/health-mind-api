@@ -1,4 +1,4 @@
-const { processImageUpload, validateFileSize } = require('../utils/fileHelper');
+const { validateFileSize } = require('../utils/fileHelper');
 const { uploadToFirebase } = require('../config/firebase');
 
 /**
@@ -19,13 +19,11 @@ const handleAvatarUpload = async (req, res, next) => {
       });
     }
 
-    const { buffer, mimetype } = await processImageUpload(req.file.buffer, req.file.mimetype, 'avatar');
-
     const entityId = req.params.id || 'unknown';
-    const ext = mimetype === 'image/png' ? 'png' : 'jpg';
+    const ext = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
     const filePath = `avatars/${entityId}_${Date.now()}.${ext}`;
 
-    const url = await uploadToFirebase(buffer, filePath, mimetype);
+    const url = await uploadToFirebase(req.file.buffer, filePath, req.file.mimetype);
     req.body.avatar = url;
 
     next();
@@ -56,12 +54,11 @@ const handleLogoUpload = async (req, res, next) => {
       });
     }
 
-    const { buffer, mimetype } = await processImageUpload(req.file.buffer, req.file.mimetype, 'logo');
-
     const entityId = req.params.id || 'unknown';
-    const filePath = `logos/${entityId}_${Date.now()}.png`;
+    const ext = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
+    const filePath = `logos/${entityId}_${Date.now()}.${ext}`;
 
-    const url = await uploadToFirebase(buffer, filePath, mimetype);
+    const url = await uploadToFirebase(req.file.buffer, filePath, req.file.mimetype);
     req.body.logo = url;
 
     next();
@@ -126,11 +123,10 @@ const handleImageUpload = async (req, res, next) => {
       });
     }
 
-    const { buffer, mimetype } = await processImageUpload(req.file.buffer, req.file.mimetype, 'general');
+    const ext = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
+    const filePath = `images/${Date.now()}.${ext}`;
 
-    const filePath = `images/${Date.now()}.jpg`;
-
-    const url = await uploadToFirebase(buffer, filePath, mimetype);
+    const url = await uploadToFirebase(req.file.buffer, filePath, req.file.mimetype);
     req.body.image = url;
 
     next();

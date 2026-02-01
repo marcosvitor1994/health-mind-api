@@ -2,7 +2,7 @@ const Clinic = require('../models/Clinic');
 const Psychologist = require('../models/Psychologist');
 const Patient = require('../models/Patient');
 const Appointment = require('../models/Appointment');
-const { processImageUpload, validateFileSize } = require('../utils/fileHelper');
+const { validateFileSize } = require('../utils/fileHelper');
 const { uploadToFirebase, deleteFromFirebase } = require('../config/firebase');
 const { isValidObjectId } = require('../utils/validator');
 const occupancyService = require('../services/occupancyService');
@@ -148,10 +148,10 @@ exports.uploadLogo = async (req, res) => {
       await deleteFromFirebase(clinic.logo);
     }
 
-    // Processar e fazer upload do logo
-    const { buffer, mimetype } = await processImageUpload(req.file.buffer, req.file.mimetype, 'logo');
-    const filePath = `logos/${id}_${Date.now()}.png`;
-    const logoUrl = await uploadToFirebase(buffer, filePath, mimetype);
+    // Fazer upload do logo direto ao Firebase
+    const ext = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
+    const filePath = `logos/${id}_${Date.now()}.${ext}`;
+    const logoUrl = await uploadToFirebase(req.file.buffer, filePath, req.file.mimetype);
     clinic.logo = logoUrl;
 
     await clinic.save();

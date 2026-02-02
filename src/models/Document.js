@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const encryptionPlugin = require('../utils/encryptionPlugin');
 
 const documentSchema = new mongoose.Schema(
   {
@@ -96,6 +97,12 @@ documentSchema.pre('save', function (next) {
     this.tags = [...new Set(this.tags)]; // Remove duplicatas
   }
   next();
+});
+
+// Criptografia AES-256 para conteudo clinico
+documentSchema.plugin(encryptionPlugin, {
+  fields: ['content'],
+  hashFields: [],
 });
 
 const Document = mongoose.model('Document', documentSchema);

@@ -5,6 +5,7 @@ const Invitation = require('../models/Invitation');
 const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../middleware/auth');
 const { isValidEmail, validatePasswordStrength } = require('../utils/validator');
 const { sendWelcomeEmail } = require('../services/emailService');
+const { hash: encryptionHash } = require('../utils/encryption');
 
 /**
  * Registrar clínica
@@ -47,8 +48,8 @@ exports.registerClinic = async (req, res) => {
       });
     }
 
-    // Verificar se CNPJ já existe
-    const cnpjExists = await Clinic.findOne({ cnpj: cnpj.replace(/\D/g, '') });
+    // Verificar se CNPJ já existe (busca por hash criptografado)
+    const cnpjExists = await Clinic.findOne({ _cnpjHash: encryptionHash(cnpj.replace(/\D/g, '')) });
     if (cnpjExists) {
       return res.status(400).json({
         success: false,
@@ -139,8 +140,8 @@ exports.registerPsychologist = async (req, res) => {
       });
     }
 
-    // Verificar se CRP já existe
-    const crpExists = await Psychologist.findOne({ crp });
+    // Verificar se CRP já existe (busca por hash criptografado)
+    const crpExists = await Psychologist.findOne({ _crpHash: encryptionHash(crp) });
     if (crpExists) {
       return res.status(400).json({
         success: false,
@@ -232,9 +233,9 @@ exports.registerPatient = async (req, res) => {
       });
     }
 
-    // Verificar se CPF já existe (se fornecido)
+    // Verificar se CPF já existe (busca por hash criptografado)
     if (cpf) {
-      const cpfExists = await Patient.findOne({ cpf: cpf.replace(/\D/g, '') });
+      const cpfExists = await Patient.findOne({ _cpfHash: encryptionHash(cpf.replace(/\D/g, '')) });
       if (cpfExists) {
         return res.status(400).json({
           success: false,
@@ -722,9 +723,9 @@ exports.completePatientRegistration = async (req, res) => {
       });
     }
 
-    // Verificar se CPF já existe (se fornecido)
+    // Verificar se CPF já existe (busca por hash criptografado)
     if (cpf) {
-      const cpfExists = await Patient.findOne({ cpf: cpf.replace(/\D/g, '') });
+      const cpfExists = await Patient.findOne({ _cpfHash: encryptionHash(cpf.replace(/\D/g, '')) });
       if (cpfExists) {
         return res.status(400).json({
           success: false,

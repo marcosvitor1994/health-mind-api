@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const encryptionPlugin = require('../utils/encryptionPlugin');
 
 const clinicSchema = new mongoose.Schema(
   {
@@ -11,14 +12,13 @@ const clinicSchema = new mongoose.Schema(
     cnpj: {
       type: String,
       required: [true, 'CNPJ é obrigatório'],
-      unique: true,
       trim: true,
-      validate: {
-        validator: function (v) {
-          return /^\d{14}$/.test(v.replace(/\D/g, ''));
-        },
-        message: 'CNPJ inválido',
-      },
+    },
+    _cnpjHash: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
     },
     email: {
       type: String,
@@ -190,6 +190,12 @@ clinicSchema.methods.softDelete = async function () {
 clinicSchema.query.notDeleted = function () {
   return this.where({ deletedAt: null });
 };
+
+// Criptografia AES-256 para campos sensiveis
+clinicSchema.plugin(encryptionPlugin, {
+  fields: ['cnpj', 'phone', 'paymentSettings.bankInfo.agency', 'paymentSettings.bankInfo.account', 'paymentSettings.bankInfo.pixKey'],
+  hashFields: ['cnpj'],
+});
 
 const Clinic = mongoose.model('Clinic', clinicSchema);
 

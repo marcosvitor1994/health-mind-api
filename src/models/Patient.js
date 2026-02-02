@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const encryptionPlugin = require('../utils/encryptionPlugin');
 
 const patientSchema = new mongoose.Schema(
   {
@@ -52,16 +53,13 @@ const patientSchema = new mongoose.Schema(
     },
     cpf: {
       type: String,
+      trim: true,
+    },
+    _cpfHash: {
+      type: String,
       unique: true,
       sparse: true,
-      trim: true,
-      validate: {
-        validator: function (v) {
-          if (!v) return true; // CPF é opcional
-          return /^\d{11}$/.test(v.replace(/\D/g, ''));
-        },
-        message: 'CPF inválido',
-      },
+      index: true,
     },
     avatar: {
       type: String, // Base64 encoded image
@@ -145,6 +143,12 @@ patientSchema.virtual('age').get(function () {
     age--;
   }
   return age;
+});
+
+// Criptografia AES-256 para campos sensiveis
+patientSchema.plugin(encryptionPlugin, {
+  fields: ['cpf', 'phone', 'emergencyContact.name', 'emergencyContact.phone'],
+  hashFields: ['cpf'],
 });
 
 const Patient = mongoose.model('Patient', patientSchema);

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const encryptionPlugin = require('../utils/encryptionPlugin');
 
 const psychologistSchema = new mongoose.Schema(
   {
@@ -35,15 +36,13 @@ const psychologistSchema = new mongoose.Schema(
     crp: {
       type: String,
       required: [true, 'CRP é obrigatório'],
-      unique: true,
       trim: true,
-      validate: {
-        validator: function (v) {
-          // Formato: 12/12345 ou 12/123456
-          return /^\d{2}\/\d{5,6}$/.test(v);
-        },
-        message: 'CRP inválido. Formato: XX/XXXXX ou XX/XXXXXX',
-      },
+    },
+    _crpHash: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
     },
     phone: {
       type: String,
@@ -210,6 +209,12 @@ psychologistSchema.methods.softDelete = async function () {
 psychologistSchema.query.notDeleted = function () {
   return this.where({ deletedAt: null });
 };
+
+// Criptografia AES-256 para campos sensiveis
+psychologistSchema.plugin(encryptionPlugin, {
+  fields: ['crp', 'phone', 'paymentSettings.bankInfo.agency', 'paymentSettings.bankInfo.account', 'paymentSettings.bankInfo.pixKey'],
+  hashFields: ['crp'],
+});
 
 const Psychologist = mongoose.model('Psychologist', psychologistSchema);
 

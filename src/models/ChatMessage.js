@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const encryptionPlugin = require('../utils/encryptionPlugin');
 
 const chatMessageSchema = new mongoose.Schema(
   {
@@ -12,12 +13,10 @@ const chatMessageSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Mensagem é obrigatória'],
       trim: true,
-      maxlength: [2000, 'Mensagem deve ter no máximo 2000 caracteres'],
     },
     response: {
       type: String,
       trim: true,
-      maxlength: [5000, 'Resposta deve ter no máximo 5000 caracteres'],
     },
     isAI: {
       type: Boolean,
@@ -109,6 +108,12 @@ chatMessageSchema.statics.analyzeSentiment = function (text) {
   if (negativeCount > positiveCount) return 'negative';
   return 'neutral';
 };
+
+// Criptografia AES-256 para mensagens de terapia
+chatMessageSchema.plugin(encryptionPlugin, {
+  fields: ['message', 'response'],
+  hashFields: [],
+});
 
 const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 

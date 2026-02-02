@@ -2,8 +2,7 @@ const Clinic = require('../models/Clinic');
 const Psychologist = require('../models/Psychologist');
 const Patient = require('../models/Patient');
 const Appointment = require('../models/Appointment');
-const { validateFileSize } = require('../utils/fileHelper');
-const { uploadToFirebase, deleteFromFirebase } = require('../config/firebase');
+const { deleteFromFirebase } = require('../config/firebase');
 const { isValidObjectId } = require('../utils/validator');
 const occupancyService = require('../services/occupancyService');
 const paymentService = require('../services/paymentService');
@@ -109,7 +108,6 @@ exports.uploadLogo = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validar ObjectId
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
@@ -117,23 +115,13 @@ exports.uploadLogo = async (req, res) => {
       });
     }
 
-    // Validar arquivo
-    if (!req.file) {
+    if (!req.body.logo) {
       return res.status(400).json({
         success: false,
         message: 'Nenhum arquivo foi enviado',
       });
     }
 
-    // Validar tamanho do arquivo (5MB)
-    if (!validateFileSize(req.file.buffer, 5 * 1024 * 1024)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Arquivo muito grande. Tamanho máximo: 5MB',
-      });
-    }
-
-    // Buscar clínica
     const clinic = await Clinic.findById(id).notDeleted();
 
     if (!clinic) {
@@ -148,12 +136,8 @@ exports.uploadLogo = async (req, res) => {
       await deleteFromFirebase(clinic.logo);
     }
 
-    // Fazer upload do logo direto ao Firebase
-    const ext = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
-    const filePath = `logos/${id}_${Date.now()}.${ext}`;
-    const logoUrl = await uploadToFirebase(req.file.buffer, filePath, req.file.mimetype);
-    clinic.logo = logoUrl;
-
+    // URL já foi gerada pelo middleware handleLogoUpload
+    clinic.logo = req.body.logo;
     await clinic.save();
 
     res.status(200).json({

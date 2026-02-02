@@ -1,8 +1,7 @@
 const Psychologist = require('../models/Psychologist');
 const Patient = require('../models/Patient');
 const Appointment = require('../models/Appointment');
-const { validateFileSize } = require('../utils/fileHelper');
-const { uploadToFirebase, deleteFromFirebase } = require('../config/firebase');
+const { deleteFromFirebase } = require('../config/firebase');
 const { isValidObjectId } = require('../utils/validator');
 
 /**
@@ -110,7 +109,6 @@ exports.uploadAvatar = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validar ObjectId
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
@@ -118,23 +116,13 @@ exports.uploadAvatar = async (req, res) => {
       });
     }
 
-    // Validar arquivo
-    if (!req.file) {
+    if (!req.body.avatar) {
       return res.status(400).json({
         success: false,
         message: 'Nenhum arquivo foi enviado',
       });
     }
 
-    // Validar tamanho do arquivo (5MB)
-    if (!validateFileSize(req.file.buffer, 5 * 1024 * 1024)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Arquivo muito grande. Tamanho máximo: 5MB',
-      });
-    }
-
-    // Buscar psicólogo
     const psychologist = await Psychologist.findById(id).notDeleted();
 
     if (!psychologist) {
@@ -149,12 +137,8 @@ exports.uploadAvatar = async (req, res) => {
       await deleteFromFirebase(psychologist.avatar);
     }
 
-    // Fazer upload do avatar direto ao Firebase
-    const ext = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
-    const filePath = `avatars/psychologists/${id}_${Date.now()}.${ext}`;
-    const avatarUrl = await uploadToFirebase(req.file.buffer, filePath, req.file.mimetype);
-    psychologist.avatar = avatarUrl;
-
+    // URL já foi gerada pelo middleware handleAvatarUpload
+    psychologist.avatar = req.body.avatar;
     await psychologist.save();
 
     res.status(200).json({

@@ -1,8 +1,7 @@
 const Document = require('../models/Document');
 const Patient = require('../models/Patient');
 const Psychologist = require('../models/Psychologist');
-const { validateFileSize } = require('../utils/fileHelper');
-const { uploadToFirebase, deleteFromFirebase } = require('../config/firebase');
+const { deleteFromFirebase } = require('../config/firebase');
 const { isValidObjectId, sanitizeString } = require('../utils/validator');
 
 /**
@@ -242,7 +241,6 @@ exports.uploadPDF = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validar ObjectId
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
@@ -250,31 +248,13 @@ exports.uploadPDF = async (req, res) => {
       });
     }
 
-    // Validar arquivo
-    if (!req.file) {
+    if (!req.body.pdfFile) {
       return res.status(400).json({
         success: false,
         message: 'Nenhum arquivo foi enviado',
       });
     }
 
-    // Validar tipo de arquivo
-    if (req.file.mimetype !== 'application/pdf') {
-      return res.status(400).json({
-        success: false,
-        message: 'Apenas arquivos PDF são permitidos',
-      });
-    }
-
-    // Validar tamanho do arquivo (10MB)
-    if (!validateFileSize(req.file.buffer, 10 * 1024 * 1024)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Arquivo muito grande. Tamanho máximo: 10MB',
-      });
-    }
-
-    // Buscar documento
     const document = await Document.findById(id).notDeleted();
 
     if (!document) {
@@ -289,11 +269,8 @@ exports.uploadPDF = async (req, res) => {
       await deleteFromFirebase(document.pdfFile);
     }
 
-    // Upload para Firebase
-    const filePath = `documents/${id}_${Date.now()}.pdf`;
-    const pdfUrl = await uploadToFirebase(req.file.buffer, filePath, 'application/pdf');
-    document.pdfFile = pdfUrl;
-
+    // URL já foi gerada pelo middleware handlePDFUpload
+    document.pdfFile = req.body.pdfFile;
     await document.save();
 
     res.status(200).json({

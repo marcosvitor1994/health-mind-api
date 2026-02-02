@@ -1,4 +1,5 @@
 const admin = require('firebase-admin');
+const crypto = require('crypto');
 
 const privateKey = process.env.PRIVATE_KEY
   ? process.env.PRIVATE_KEY.split(String.raw`\n`).join('\n')
@@ -18,25 +19,29 @@ const bucket = admin.storage().bucket();
 /**
  * Faz upload de um arquivo para o Firebase Storage
  * @param {Buffer} buffer - Buffer do arquivo
- * @param {String} filePath - Caminho do arquivo no Storage (ex: "avatars/patients/123_1700000000.jpg")
+ * @param {String} filePath - Caminho do arquivo no Storage
  * @param {String} mimetype - Tipo MIME do arquivo
- * @returns {Promise<String>} URL pública do arquivo
+ * @returns {Promise<String>} URL do arquivo com download token
  */
 const uploadToFirebase = async (buffer, filePath, mimetype) => {
   const file = bucket.file(filePath);
+  const downloadToken = crypto.randomUUID();
 
   await file.save(buffer, {
     metadata: {
       contentType: mimetype,
+      metadata: {
+        firebaseStorageDownloadTokens: downloadToken,
+      },
     },
   });
 
-  return `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`;
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media&token=${downloadToken}`;
 };
 
 /**
  * Deleta um arquivo do Firebase Storage a partir da URL
- * @param {String} fileUrl - URL pública do arquivo
+ * @param {String} fileUrl - URL do arquivo
  */
 const deleteFromFirebase = async (fileUrl) => {
   if (!fileUrl) return;
@@ -45,12 +50,13 @@ const deleteFromFirebase = async (fileUrl) => {
     let filePath;
 
     if (fileUrl.includes('/o/')) {
-      // Formato: https://firebasestorage.googleapis.com/v0/b/bucket/o/path?alt=media
+      // Formato: https://firebasestorage.googleapis.com/v0/b/bucket/o/path?alt=media&token=...
       const encoded = fileUrl.split('/o/')[1]?.split('?')[0];
       filePath = encoded ? decodeURIComponent(encoded) : null;
-    } else if (fileUrl.includes(bucket.name)) {
-      // Formato antigo: https://storage.googleapis.com/bucket/path
-      filePath = fileUrl.split(`${bucket.name}/`)[1];
+    } else if (fileUrl.includes(`${bucket.name}/`)) {
+      // Formato antigo: https://storage.googleapis.com/bucket/path?...
+      const afterBucket = fileUrl.split(`${bucket.name}/`)[1];
+      filePath = afterBucket ? afterBucket.split('?')[0] : null;
     }
 
     if (filePath) {

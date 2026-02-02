@@ -66,7 +66,7 @@ chatMessageSchema.methods.softDelete = async function () {
 // Método estático para obter estatísticas de sentimento
 chatMessageSchema.statics.getSentimentStats = async function (patientId, startDate, endDate) {
   const match = {
-    patientId: mongoose.Types.ObjectId(patientId),
+    patientId: new mongoose.Types.ObjectId(patientId),
     deletedAt: null,
     sentiment: { $ne: null },
   };

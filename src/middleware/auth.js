@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const Clinic = require('../models/Clinic');
 const Psychologist = require('../models/Psychologist');
 const Patient = require('../models/Patient');
+const Admin = require('../models/Admin');
 
 /**
  * Middleware de autenticação JWT
@@ -31,6 +32,9 @@ const protect = async (req, res, next) => {
       let user;
 
       switch (decoded.role) {
+        case 'admin':
+          user = await Admin.findById(decoded.id).select('-password');
+          break;
         case 'clinic':
           user = await Clinic.findById(decoded.id).select('-password');
           break;
@@ -147,6 +151,9 @@ const optionalAuth = async (req, res, next) => {
       let user;
 
       switch (decoded.role) {
+        case 'admin':
+          user = await Admin.findById(decoded.id).select('-password');
+          break;
         case 'clinic':
           user = await Clinic.findById(decoded.id).select('-password');
           break;

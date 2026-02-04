@@ -42,9 +42,15 @@ const authorizeOwnerOrAbove = (paramName = 'id') => {
     }
 
     // Lógica de hierarquia:
+    // - Admin tem acesso total
     // - Clínica pode acessar seus psicólogos
     // - Psicólogo pode acessar seus pacientes
     // - Paciente só acessa seus próprios dados
+
+    if (req.user.role === 'admin') {
+      // Admin tem acesso total ao sistema
+      return next();
+    }
 
     if (req.user.role === 'clinic') {
       // Clínica tem acesso amplo (verificação adicional pode ser feita no controller)
@@ -74,6 +80,11 @@ const authorizeClinicForPsychologist = async (req, res, next) => {
         success: false,
         message: 'Não autorizado',
       });
+    }
+
+    // Admin tem acesso total
+    if (req.user.role === 'admin') {
+      return next();
     }
 
     // Se for o próprio psicólogo, permite
@@ -129,6 +140,11 @@ const authorizePsychologistForPatient = async (req, res, next) => {
     }
 
     const patientId = req.params.id || req.params.patientId;
+
+    // Admin tem acesso total
+    if (req.user.role === 'admin') {
+      return next();
+    }
 
     // Se for o próprio paciente, permite
     if (req.user.role === 'patient' && req.user._id.toString() === patientId) {
@@ -224,6 +240,11 @@ const authorizeDocumentAccess = async (req, res, next) => {
         success: false,
         message: 'Documento não encontrado',
       });
+    }
+
+    // Admin tem acesso total
+    if (req.user.role === 'admin') {
+      return next();
     }
 
     // Paciente pode acessar seus próprios documentos

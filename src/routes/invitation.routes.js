@@ -16,9 +16,9 @@ const { authorize } = require('../middleware/roleCheck');
 /**
  * @route   POST /api/invitations/clinic
  * @desc    [ADMIN] Criar convite para clínica
- * @access  Private (Admin only - implementar middleware)
+ * @access  Private (Admin only)
  */
-router.post('/clinic', protect, inviteClinic);
+router.post('/clinic', protect, authorize('admin'), inviteClinic);
 
 /**
  * @route   POST /api/invitations/psychologist
@@ -53,20 +53,20 @@ router.get('/validate/:token', validateInvitation);
  * @desc    Listar convites enviados
  * @access  Private (Clinic, Psychologist, Admin)
  */
-router.get('/', protect, authorize('clinic', 'psychologist'), listInvitations);
+router.get('/', protect, authorize('clinic', 'psychologist', 'admin'), listInvitations);
 
 /**
  * @route   DELETE /api/invitations/:id
  * @desc    Cancelar convite
  * @access  Private (Clinic, Psychologist, Admin)
  */
-router.delete('/:id', protect, authorize('clinic', 'psychologist'), cancelInvitation);
+router.delete('/:id', protect, authorize('clinic', 'psychologist', 'admin'), cancelInvitation);
 
 /**
  * @route   POST /api/invitations/:id/resend
  * @desc    Reenviar convite
  * @access  Private (Clinic, Psychologist, Admin)
  */
-router.post('/:id/resend', protect, authorize('clinic', 'psychologist'), resendInvitation);
+router.post('/:id/resend', protect, authorize('clinic', 'psychologist', 'admin'), resendInvitation);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const Clinic = require('../models/Clinic');
 const Psychologist = require('../models/Psychologist');
 const Patient = require('../models/Patient');
+const Admin = require('../models/Admin');
 const Invitation = require('../models/Invitation');
 const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../middleware/auth');
 const { isValidEmail, validatePasswordStrength } = require('../utils/validator');
@@ -308,6 +309,11 @@ exports.login = async (req, res) => {
     if (!user) {
       user = await Patient.findOne({ email }).select('+password').notDeleted();
       role = 'patient';
+    }
+
+    if (!user) {
+      user = await Admin.findOne({ email }).select('+password').notDeleted();
+      role = 'admin';
     }
 
     if (!user) {

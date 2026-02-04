@@ -52,7 +52,7 @@ exports.sendMessage = async (req, res) => {
     const sentiment = ChatMessage.analyzeSentiment(message);
 
     // Criar mensagem do usuário
-    const userMessage = await ChatMessage.create({
+    const createdUserMessage = await ChatMessage.create({
       patientId,
       message: sanitizeString(message),
       isAI: false,
@@ -63,13 +63,17 @@ exports.sendMessage = async (req, res) => {
     const aiResponse = await generateAIResponse(message, patient);
 
     // Criar mensagem da IA
-    const aiMessage = await ChatMessage.create({
+    const createdAiMessage = await ChatMessage.create({
       patientId,
       message: aiResponse,
       response: aiResponse,
       isAI: true,
       sentiment: 'neutral',
     });
+
+    // Buscar as mensagens criadas para acionar hooks de descriptografia
+    const userMessage = await ChatMessage.findById(createdUserMessage._id);
+    const aiMessage = await ChatMessage.findById(createdAiMessage._id);
 
     res.status(201).json({
       success: true,

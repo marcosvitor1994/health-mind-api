@@ -1,11 +1,11 @@
 const TherapeuticReport = require('../models/TherapeuticReport');
 const ChatMessage = require('../models/ChatMessage');
 const Patient = require('../models/Patient');
-const { callGemini } = require('../services/geminiService');
+const { callClaude } = require('../services/claudeService');
 const { isValidObjectId } = require('../utils/validator');
 
 /**
- * Limita o tamanho das mensagens para não exceder o contexto do Gemini
+ * Limita o tamanho das mensagens para não exceder o contexto
  * Prioriza as mensagens mais recentes
  */
 function prepareMessagesForPrompt(messages, maxChars = 80000) {
@@ -91,7 +91,7 @@ Escreva um resumo geral de 2-3 frases sobre o estado do paciente no período ana
 }
 
 /**
- * Parseia a resposta do Gemini em seções estruturadas
+ * Parseia a resposta do Claude em seções estruturadas
  */
 function parseReportSections(text) {
   const sections = {
@@ -146,7 +146,7 @@ function parseReportSections(text) {
 }
 
 /**
- * Gerar relatório terapêutico via Gemini
+ * Gerar relatório terapêutico via Claude
  * @route POST /api/ai/generate-therapeutic-report
  * @access Private (Psychologist)
  */
@@ -244,15 +244,15 @@ exports.generateReport = async (req, res) => {
     // Construir prompt
     const prompt = buildReportPrompt(messagesText, periodStart, periodEnd, messages.length);
 
-    // Chamar Gemini com timeout maior e mais tokens
-    const geminiResponse = await callGemini(prompt, 0, [], {
+    // Chamar Claude com timeout maior e mais tokens
+    const claudeResponse = await callClaude(prompt, {
       temperature: 0.4,
-      maxOutputTokens: 8192,
+      maxTokens: 8192,
       timeout: 120000,
     });
 
     // Parsear resposta em seções
-    const { sections, summary } = parseReportSections(geminiResponse);
+    const { sections, summary } = parseReportSections(claudeResponse);
 
     // Atualizar relatório com conteúdo
     report.sections = sections;

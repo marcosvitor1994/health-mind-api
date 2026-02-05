@@ -1,4 +1,4 @@
-const { callGemini } = require('../services/geminiService');
+const { callClaude } = require('../services/claudeService');
 
 const SECOES_OBRIGATORIAS = `
 
@@ -53,7 +53,7 @@ Voce nao esta sozinha(o) e sua vida importa. Vou comunicar o(a) [NOME_PSICOLOGO]
 ---
 `;
 
-function buildGeminiPrompt(dados) {
+function buildSystemPromptRequest(dados) {
   const especializacoes = [
     ...(dados.publicosEspecificos || []).map((p) => `publico ${p}`),
     ...(dados.temasEspecializados || []).map((t) => t),
@@ -114,7 +114,7 @@ ${SECOES_OBRIGATORIAS}
 }
 
 /**
- * Gerar system prompt personalizado via Gemini
+ * Gerar system prompt personalizado via Claude
  * @route POST /api/ai/generate-system-prompt
  * @access Public (usado durante registro)
  */
@@ -137,9 +137,9 @@ exports.generateSystemPrompt = async (req, res) => {
       });
     }
 
-    // Gerar prompt e chamar Gemini
-    const prompt = buildGeminiPrompt(dados);
-    let systemPrompt = await callGemini(prompt);
+    // Gerar prompt e chamar Claude
+    const prompt = buildSystemPromptRequest(dados);
+    let systemPrompt = await callClaude(prompt);
 
     // Garantir secoes obrigatorias (protocolo de emergencia)
     const secoesComNome = SECOES_OBRIGATORIAS.replace(

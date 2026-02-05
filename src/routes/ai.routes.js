@@ -11,7 +11,7 @@ const { authorize } = require('../middleware/roleCheck');
 
 /**
  * @route   POST /api/ai/generate-system-prompt
- * @desc    Gerar system prompt personalizado via Gemini
+ * @desc    Gerar system prompt personalizado via Claude
  * @access  Public (usado durante registro de psicologo)
  */
 router.post('/generate-system-prompt', generateSystemPrompt);

@@ -5,12 +5,26 @@
     {
       "src": "api/index.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/cron/appointment-reminders.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
+      "src": "/api/cron/appointment-reminders",
+      "dest": "api/cron/appointment-reminders.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "api/index.js"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/appointment-reminders",
+      "schedule": "0 11 * * *"
     }
   ],
   "env": {

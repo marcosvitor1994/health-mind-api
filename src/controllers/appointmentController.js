@@ -161,15 +161,21 @@ exports.createAppointment = async (req, res) => {
       duration: duration || 50,
       type: type || 'online',
       notes,
-      status: 'scheduled',
+      status: 'awaiting_patient',
     });
 
     // Popular dados relacionados
     await appointment.populate([
-      { path: 'patientId', select: 'name email phone' },
-      { path: 'psychologistId', select: 'name email crp' },
+      { path: 'patientId', select: 'name email phone expoPushToken' },
+      { path: 'psychologistId', select: 'name email crp expoPushToken' },
       { path: 'roomId', select: 'name number' },
     ]);
+
+    // Enviar push notification para ambos os lados
+    const pushService = require('../services/pushNotificationService');
+    pushService.notifyNewAppointment(appointment).catch(err =>
+      console.error('Erro ao enviar push de novo agendamento:', err)
+    );
 
     res.status(201).json({
       success: true,
@@ -208,7 +214,8 @@ exports.getAppointment = async (req, res) => {
       .notDeleted()
       .populate('patientId', 'name email phone avatar')
       .populate('psychologistId', 'name email phone crp specialties avatar')
-      .populate('roomId', 'name number description');
+      .populate('roomId', 'name number description')
+      .populate('paymentId', 'status paymentMethod healthInsurance finalValue paidAt confirmedAt dueDate');
 
     if (!appointment) {
       return res.status(404).json({
@@ -348,7 +355,7 @@ exports.updateAppointment = async (req, res) => {
     if (roomId !== undefined) appointment.roomId = validatedRoomId;
     if (status) {
       // Validar status
-      const validStatuses = ['scheduled', 'confirmed', 'completed', 'cancelled'];
+      const validStatuses = ['scheduled', 'confirmed', 'awaiting_patient', 'awaiting_psychologist', 'completed', 'cancelled'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
@@ -606,6 +613,149 @@ exports.getPatientAppointments = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar agendamentos',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Confirmar agendamento (paciente confirma presença ou psicólogo confirma reagendamento)
+ * @route POST /api/appointments/:id/confirm
+ * @access Private (Patient, Psychologist, Clinic)
+ */
+exports.confirmAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID do agendamento inválido',
+      });
+    }
+
+    const appointment = await Appointment.findById(id).notDeleted();
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agendamento não encontrado',
+      });
+    }
+
+    const confirmableStatuses = ['scheduled', 'awaiting_patient', 'awaiting_psychologist'];
+    if (!confirmableStatuses.includes(appointment.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Não é possível confirmar um agendamento com status "${appointment.status}"`,
+      });
+    }
+
+    if (appointment.status === 'awaiting_patient' && req.user.role !== 'patient' && req.user.role !== 'clinic') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas o paciente pode confirmar presença neste agendamento',
+      });
+    }
+
+    if (appointment.status === 'awaiting_psychologist' && req.user.role !== 'psychologist' && req.user.role !== 'clinic') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas o psicólogo pode confirmar este reagendamento',
+      });
+    }
+
+    await appointment.confirm();
+
+    await appointment.populate([
+      { path: 'patientId', select: 'name email phone' },
+      { path: 'psychologistId', select: 'name email crp' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Agendamento confirmado com sucesso',
+      data: appointment,
+    });
+  } catch (error) {
+    console.error('Erro ao confirmar agendamento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao confirmar agendamento',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Solicitar reagendamento
+ * @route POST /api/appointments/:id/request-reschedule
+ * @access Private (Patient, Psychologist)
+ */
+exports.requestReschedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID do agendamento inválido',
+      });
+    }
+
+    const appointment = await Appointment.findById(id).notDeleted();
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agendamento não encontrado',
+      });
+    }
+
+    if (appointment.status === 'completed' || appointment.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Não é possível reagendar agendamentos completados ou cancelados',
+      });
+    }
+
+    let requestedBy;
+    if (req.user.role === 'patient') {
+      requestedBy = 'patient';
+    } else if (req.user.role === 'psychologist') {
+      requestedBy = 'psychologist';
+    } else if (req.user.role === 'clinic') {
+      requestedBy = 'psychologist';
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'Permissão negada',
+      });
+    }
+
+    await appointment.requestReschedule(requestedBy);
+
+    await appointment.populate([
+      { path: 'patientId', select: 'name email phone expoPushToken' },
+      { path: 'psychologistId', select: 'name email crp expoPushToken' },
+    ]);
+
+    // Enviar push notification para o outro lado
+    const pushService = require('../services/pushNotificationService');
+    pushService.notifyRescheduleRequest(appointment, requestedBy).catch(err =>
+      console.error('Erro ao enviar push de reagendamento:', err)
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Solicitação de reagendamento enviada com sucesso',
+      data: appointment,
+    });
+  } catch (error) {
+    console.error('Erro ao solicitar reagendamento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao solicitar reagendamento',
       error: error.message,
     });
   }

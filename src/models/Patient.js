@@ -80,6 +80,11 @@ const patientSchema = new mongoose.Schema(
       phone: { type: String, trim: true },
       relationship: { type: String, trim: true },
     },
+    expoPushToken: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     deletedAt: {
       type: Date,
       default: null,

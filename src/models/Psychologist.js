@@ -154,6 +154,11 @@ const psychologistSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
+    expoPushToken: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     role: {
       type: String,
       default: 'psychologist',

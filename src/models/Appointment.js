@@ -47,10 +47,10 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: {
-        values: ['scheduled', 'confirmed', 'completed', 'cancelled'],
+        values: ['scheduled', 'confirmed', 'awaiting_patient', 'awaiting_psychologist', 'completed', 'cancelled'],
         message: '{VALUE} não é um status válido',
       },
-      default: 'scheduled',
+      default: 'awaiting_patient',
       index: true,
     },
     type: {
@@ -70,6 +70,11 @@ const appointmentSchema = new mongoose.Schema(
     reminderSent: {
       type: Boolean,
       default: false,
+    },
+    rescheduleRequestedBy: {
+      type: String,
+      enum: ['patient', 'psychologist', null],
+      default: null,
     },
     cancelledBy: {
       type: String,
@@ -155,6 +160,17 @@ appointmentSchema.methods.complete = async function () {
   return await this.save();
 };
 
+// Método para solicitar reagendamento
+appointmentSchema.methods.requestReschedule = async function (requestedBy) {
+  if (requestedBy === 'patient') {
+    this.status = 'awaiting_psychologist';
+  } else if (requestedBy === 'psychologist') {
+    this.status = 'awaiting_patient';
+  }
+  this.rescheduleRequestedBy = requestedBy;
+  return await this.save();
+};
+
 // Virtual para verificar se está próximo (dentro de 24h)
 appointmentSchema.virtual('isUpcoming').get(function () {
   const now = new Date();
@@ -182,7 +198,7 @@ appointmentSchema.statics.checkConflict = async function (params) {
   const endTime = new Date(startTime.getTime() + actualParams.duration * 60000);
 
   const baseQuery = {
-    status: { $in: ['scheduled', 'confirmed'] },
+    status: { $in: ['scheduled', 'confirmed', 'awaiting_patient', 'awaiting_psychologist'] },
     deletedAt: null,
     $or: [
       {

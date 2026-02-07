@@ -7,6 +7,8 @@ const {
   cancelAppointment,
   getPsychologistAppointments,
   getPatientAppointments,
+  confirmAppointment,
+  requestReschedule,
 } = require('../controllers/appointmentController');
 const { protect } = require('../middleware/auth');
 const { authorize } = require('../middleware/roleCheck');
@@ -31,6 +33,20 @@ router.get('/:id', protect, authorize('patient', 'psychologist', 'clinic'), getA
  * @access  Private (Psychologist, Patient, Clinic)
  */
 router.put('/:id', protect, authorize('psychologist', 'patient', 'clinic'), updateAppointment);
+
+/**
+ * @route   POST /api/appointments/:id/confirm
+ * @desc    Confirmar presença no agendamento
+ * @access  Private (Patient, Psychologist, Clinic)
+ */
+router.post('/:id/confirm', protect, authorize('patient', 'psychologist', 'clinic'), confirmAppointment);
+
+/**
+ * @route   POST /api/appointments/:id/request-reschedule
+ * @desc    Solicitar reagendamento
+ * @access  Private (Patient, Psychologist)
+ */
+router.post('/:id/request-reschedule', protect, authorize('patient', 'psychologist', 'clinic'), requestReschedule);
 
 /**
  * @route   DELETE /api/appointments/:id

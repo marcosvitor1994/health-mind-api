@@ -96,6 +96,7 @@ const availabilityRoutes = require('./routes/availability.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const aiRoutes = require('./routes/ai.routes');
 const adminRoutes = require('./routes/admin.routes');
+const pushRoutes = require('./routes/push.routes');
 
 // Usar rotas
 app.use('/api/auth', authRoutes);
@@ -111,6 +112,7 @@ app.use('/api/availability', availabilityRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/push', pushRoutes);
 
 // Rota 404 - Não encontrado
 app.use((req, res) => {

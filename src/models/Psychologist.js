@@ -170,6 +170,10 @@ const psychologistSchema = new mongoose.Schema(
       default: 'psychologist',
       immutable: true,
     },
+    termsAcceptedAt: {
+      type: Date,
+      default: null,
+    },
     deletedAt: {
       type: Date,
       default: null,

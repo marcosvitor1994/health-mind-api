@@ -85,6 +85,10 @@ const patientSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    termsAcceptedAt: {
+      type: Date,
+      default: null,
+    },
     deletedAt: {
       type: Date,
       default: null,

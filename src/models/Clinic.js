@@ -142,6 +142,10 @@ const clinicSchema = new mongoose.Schema(
       default: 'clinic',
       immutable: true,
     },
+    termsAcceptedAt: {
+      type: Date,
+      default: null,
+    },
     deletedAt: {
       type: Date,
       default: null,

@@ -449,7 +449,7 @@ exports.logout = async (req, res) => {
  */
 exports.completeClinicRegistration = async (req, res) => {
   try {
-    const { token, password, phone, address } = req.body;
+    const { token, password, phone, address, termsAcceptedAt } = req.body;
 
     // Validações
     if (!token || !password) {
@@ -502,6 +502,7 @@ exports.completeClinicRegistration = async (req, res) => {
       password,
       phone: phone || invitation.preFilledData.phone,
       address,
+      termsAcceptedAt: termsAcceptedAt ? new Date(termsAcceptedAt) : null,
     });
 
     // Marcar convite como aceito
@@ -551,7 +552,7 @@ exports.completePsychologistRegistration = async (req, res) => {
       tecnicasFavoritas, restricoesTematicas, diferenciais,
       experienciaViolencia, situacoesLimite, linguagemPreferida,
       exemploAcolhimento, exemploLimiteEtico,
-      systemPrompt,
+      systemPrompt, termsAcceptedAt,
     } = req.body;
 
     // Validações
@@ -633,6 +634,7 @@ exports.completePsychologistRegistration = async (req, res) => {
       phone: phone || invitation.preFilledData.phone,
       bio,
       systemPrompt: systemPrompt || null,
+      termsAcceptedAt: termsAcceptedAt ? new Date(termsAcceptedAt) : null,
       therapeuticProfile: {
         formacaoAcademica: formacaoAcademica || null,
         posGraduacao: posGraduacao || null,
@@ -692,7 +694,7 @@ exports.completePsychologistRegistration = async (req, res) => {
  */
 exports.completePatientRegistration = async (req, res) => {
   try {
-    const { token, password, cpf, emergencyContact } = req.body;
+    const { token, password, cpf, emergencyContact, termsAcceptedAt } = req.body;
 
     // Validações
     if (!token || !password) {
@@ -767,6 +769,7 @@ exports.completePatientRegistration = async (req, res) => {
       birthDate: invitation.preFilledData.birthDate,
       cpf: cpf ? cpf.replace(/\D/g, '') : undefined,
       emergencyContact,
+      termsAcceptedAt: termsAcceptedAt ? new Date(termsAcceptedAt) : null,
     });
 
     // Marcar convite como aceito

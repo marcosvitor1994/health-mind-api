@@ -16,7 +16,7 @@ const MODEL = 'claude-3-5-haiku-latest';
 async function callClaude(prompt, options = {}) {
   const {
     temperature = 0.7,
-    maxTokens = 4096,
+    maxTokens = 8192,
     timeout = 60000,
   } = options;
 

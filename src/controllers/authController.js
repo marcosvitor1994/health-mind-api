@@ -546,9 +546,11 @@ exports.completePsychologistRegistration = async (req, res) => {
   try {
     const {
       token, password, phone, bio,
-      formacaoAcademica, abordagemPrincipal, descricaoTrabalho,
+      formacaoAcademica, posGraduacao, abordagemPrincipal, descricaoTrabalho,
       publicosEspecificos, temasEspecializados, tonsComunicacao,
       tecnicasFavoritas, restricoesTematicas, diferenciais,
+      experienciaViolencia, situacoesLimite, linguagemPreferida,
+      exemploAcolhimento, exemploLimiteEtico,
       systemPrompt,
     } = req.body;
 
@@ -633,6 +635,7 @@ exports.completePsychologistRegistration = async (req, res) => {
       systemPrompt: systemPrompt || null,
       therapeuticProfile: {
         formacaoAcademica: formacaoAcademica || null,
+        posGraduacao: posGraduacao || null,
         abordagemPrincipal: abordagemPrincipal || null,
         descricaoTrabalho: descricaoTrabalho || null,
         publicosEspecificos: publicosEspecificos || [],
@@ -641,6 +644,11 @@ exports.completePsychologistRegistration = async (req, res) => {
         tecnicasFavoritas: tecnicasFavoritas || [],
         restricoesTematicas: restricoesTematicas || null,
         diferenciais: diferenciais || null,
+        experienciaViolencia: experienciaViolencia || null,
+        situacoesLimite: situacoesLimite || null,
+        linguagemPreferida: linguagemPreferida || null,
+        exemploAcolhimento: exemploAcolhimento || null,
+        exemploLimiteEtico: exemploLimiteEtico || null,
       },
     });
 

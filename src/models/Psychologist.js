@@ -71,6 +71,7 @@ const psychologistSchema = new mongoose.Schema(
     // Perfil terapêutico (dados brutos do wizard de cadastro)
     therapeuticProfile: {
       formacaoAcademica: { type: String, trim: true },
+      posGraduacao: { type: String, trim: true },
       abordagemPrincipal: { type: String, trim: true },
       descricaoTrabalho: { type: String, trim: true, maxlength: 200 },
       publicosEspecificos: { type: [String], default: [] },
@@ -79,6 +80,11 @@ const psychologistSchema = new mongoose.Schema(
       tecnicasFavoritas: { type: [String], default: [] },
       restricoesTematicas: { type: String, trim: true },
       diferenciais: { type: String, trim: true, maxlength: 100 },
+      experienciaViolencia: { type: String, trim: true },
+      situacoesLimite: { type: String, trim: true },
+      linguagemPreferida: { type: String, trim: true },
+      exemploAcolhimento: { type: String, trim: true },
+      exemploLimiteEtico: { type: String, trim: true },
     },
     settings: {
       defaultSessionDuration: {
